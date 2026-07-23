@@ -1,5 +1,7 @@
 export interface Movie {
   id: string;
+  tmdbId?: string;
+  imdbId?: string;
   title: string;
   year: string;
   runtime?: string;

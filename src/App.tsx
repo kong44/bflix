@@ -26,6 +26,7 @@ import {
   Heart,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Info,
   Layers,
   Grid
@@ -373,35 +374,43 @@ export default function App() {
             {/* MAIN CATALOG SECTION */}
             <div id="catalog-section" className="max-w-7xl mx-auto w-full px-6 sm:px-8 py-8 space-y-8 flex-grow">
               
-              {/* Category & Genre Filter Pills Bar */}
+              {/* Category & Genre Filter Dropdown */}
               {searchResults === null && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-imdb" />
-                      Browse by Category & Genre
-                    </span>
-                    <span className="text-[11px] text-gray-500 font-mono">
-                      {CATEGORIES.length} Categories
-                    </span>
+                <div className="bg-[#101014] border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-imdb">
+                      <Layers className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                        <span>Select Movie Category / Genre</span>
+                      </h4>
+                      <p className="text-[11px] text-gray-400 font-mono">
+                        Filter catalog across {CATEGORIES.length} curated categories
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none pt-1">
-                    {CATEGORIES.map((cat) => {
-                      const isSelected = selectedCategory === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          onClick={() => handleSelectCategory(cat.id)}
-                          className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border select-none ${
-                            isSelected
-                              ? "bg-imdb text-black border-imdb shadow-lg shadow-amber-500/10 font-bold scale-[1.02]"
-                              : "bg-[#121214] text-gray-300 hover:text-white border-white/5 hover:border-white/20 hover:bg-white/5"
-                          }`}
-                        >
-                          {cat.name}
-                        </button>
-                      );
-                    })}
+
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-64">
+                      <select
+                        id="category-dropdown"
+                        value={selectedCategory}
+                        onChange={(e) => handleSelectCategory(e.target.value)}
+                        className="w-full bg-[#18181c] text-white border border-white/20 rounded-xl px-4 py-2.5 text-xs font-mono font-bold focus:outline-none focus:border-imdb cursor-pointer pr-10 appearance-none shadow-md hover:bg-[#202026] transition-all"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat.id} value={cat.id} className="bg-[#121215] text-white py-1.5 font-sans">
+                            {cat.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-imdb absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <span className="text-xs font-mono font-bold px-3 py-2 rounded-xl bg-imdb text-black shrink-0 hidden md:inline-block shadow-md">
+                      {currentCategoryObj.name}
+                    </span>
                   </div>
                 </div>
               )}

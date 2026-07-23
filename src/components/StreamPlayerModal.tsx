@@ -1,6 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Movie } from "../types";
-import { X, Play, RefreshCw, Maximize2, ExternalLink, ShieldCheck, Film, Tv, Radio } from "lucide-react";
+import { 
+  X, 
+  Play, 
+  RefreshCw, 
+  Maximize2, 
+  ExternalLink, 
+  ShieldCheck, 
+  Film, 
+  Tv, 
+  Radio, 
+  ChevronRight, 
+  ChevronDown,
+  Server,
+  AlertCircle 
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface StreamPlayerModalProps {
@@ -12,70 +26,173 @@ interface StreamProvider {
   id: string;
   name: string;
   badge: string;
-  getMovieUrl: (imdbId: string) => string;
-  getTvUrl: (imdbId: string, season: number, episode: number) => string;
+  getMovieUrl: (tmdbId: string, imdbId: string, id: string) => string;
+  getTvUrl: (tmdbId: string, imdbId: string, id: string, season: number, episode: number) => string;
 }
+
+const TMDB_API_KEY = "15d2fb6030da5f74303f47bf9d0e0a7e";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 const PROVIDERS: StreamProvider[] = [
   {
-    id: "vidsrc2_ru",
-    name: "VidSrc2.ru (Primary)",
+    id: "vidsrc_cc",
+    name: "VidSrc.cc",
     badge: "FAST 1080P",
-    getMovieUrl: (id) => `https://vidsrc2.ru/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://vidsrc2.ru/embed/tv/${id}/${s}/${e}`
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.cc/v2/embed/movie/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.cc/v2/embed/tv/${tmdb || id}/${s}/${e}`
   },
   {
-    id: "vidsrc2_to",
-    name: "VidSrc2.to",
-    badge: "4K HD",
-    getMovieUrl: (id) => `https://vidsrc2.to/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://vidsrc2.to/embed/tv/${id}/${s}/${e}`
+    id: "embed_su",
+    name: "Embed.su",
+    badge: "AUTO SUB",
+    getMovieUrl: (tmdb, imdb, id) => `https://embed.su/embed/movie/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://embed.su/embed/tv/${tmdb || id}/${s}/${e}`
   },
   {
     id: "vidsrc_pro",
     name: "VidSrc Pro",
-    badge: "PRO SERVER",
-    getMovieUrl: (id) => `https://vidsrc.pro/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://vidsrc.pro/embed/tv/${id}/${s}/${e}`
+    badge: "4K HD",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.pro/embed/movie/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.pro/embed/tv/${tmdb || id}/${s}/${e}`
+  },
+  {
+    id: "vidsrc_in",
+    name: "VidSrc.in",
+    badge: "SERVER 4",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.in/embed/movie/${imdb || tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.in/embed/tv/${imdb || tmdb || id}/${s}/${e}`
+  },
+  {
+    id: "autoembed",
+    name: "AutoEmbed",
+    badge: "SERVER 5",
+    getMovieUrl: (tmdb, imdb, id) => `https://player.autoembed.cc/embed/movie/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://player.autoembed.cc/embed/tv/${tmdb || id}/${s}/${e}`
+  },
+  {
+    id: "vidsrc_icu",
+    name: "VidSrc.icu",
+    badge: "SERVER 6",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.icu/embed/movie/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.icu/embed/tv/${tmdb || id}/${s}/${e}`
   },
   {
     id: "two_embed",
     name: "2Embed",
     badge: "STABLE",
-    getMovieUrl: (id) => `https://2embed.cc/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://2embed.cc/embed/tv/${id}&s=${s}&e=${e}`
+    getMovieUrl: (tmdb, imdb, id) => `https://www.2embed.cc/embed/${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://www.2embed.cc/embedtv/${tmdb || id}&s=${s}&e=${e}`
   },
   {
-    id: "autoembed",
-    name: "AutoEmbed",
-    badge: "MULTI-SUB",
-    getMovieUrl: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_xyz",
-    name: "VidSrc.xyz",
+    id: "multiembed",
+    name: "MultiEmbed",
     badge: "BACKUP",
-    getMovieUrl: (id) => `https://vidsrc.xyz/embed/movie/${id}`,
-    getTvUrl: (id, s, e) => `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}`
+    getMovieUrl: (tmdb, imdb, id) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1&s=${s}&e=${e}`
+  },
+  {
+    id: "smashystream",
+    name: "SmashyStream",
+    badge: "ALT SERVER",
+    getMovieUrl: (tmdb, imdb, id) => `https://embed.smashystream.com/playere.php?tmdb=${tmdb || id}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://embed.smashystream.com/playere.php?tmdb=${tmdb || id}&season=${s}&episode=${e}`
   }
 ];
 
 export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalProps) {
-  const [selectedProvider, setSelectedProvider] = useState<StreamProvider>(PROVIDERS[0]);
+  const [selectedProviderIndex, setSelectedProviderIndex] = useState(0);
+  const selectedProvider = PROVIDERS[selectedProviderIndex];
+
   const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [iframeKey, setIframeKey] = useState(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Resolved ID state
+  const [tmdbId, setTmdbId] = useState<string>(movie.tmdbId || "");
+  const [imdbId, setImdbId] = useState<string>(movie.imdbId || "");
+
+  // Resolve external IDs if missing
+  useEffect(() => {
+    let isMounted = true;
+
+    async function resolveIds() {
+      // Determine initial values from movie prop
+      let currentTmdb = movie.tmdbId || "";
+      let currentImdb = movie.imdbId || "";
+
+      if (!currentTmdb && !movie.id.startsWith("tt") && /^\d+$/.test(movie.id)) {
+        currentTmdb = movie.id;
+      }
+      if (!currentImdb && movie.id.startsWith("tt")) {
+        currentImdb = movie.id;
+      }
+
+      if (currentTmdb && currentImdb) {
+        if (isMounted) {
+          setTmdbId(currentTmdb);
+          setImdbId(currentImdb);
+        }
+        return;
+      }
+
+      try {
+        const lookupId = currentTmdb || currentImdb || movie.id;
+        if (lookupId.startsWith("tt")) {
+          // Find TMDB ID from IMDb ID
+          const findRes = await fetch(
+            `${TMDB_BASE_URL}/find/${lookupId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`
+          );
+          if (findRes.ok) {
+            const findData = await findRes.json();
+            if (findData.movie_results?.[0]?.id) {
+              currentTmdb = String(findData.movie_results[0].id);
+            }
+          }
+        } else if (/^\d+$/.test(lookupId)) {
+          // Fetch external IDs from numeric TMDB ID
+          const detailRes = await fetch(
+            `${TMDB_BASE_URL}/movie/${lookupId}/external_ids?api_key=${TMDB_API_KEY}`
+          );
+          if (detailRes.ok) {
+            const extData = await detailRes.json();
+            if (extData.imdb_id) {
+              currentImdb = extData.imdb_id;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to resolve external IDs for streaming player:", e);
+      }
+
+      if (isMounted) {
+        setTmdbId(currentTmdb || movie.id);
+        setImdbId(currentImdb || movie.id);
+      }
+    }
+
+    resolveIds();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [movie]);
 
   // Compute current video embed source URL
+  const activeTmdb = tmdbId || (movie.id.startsWith("tt") ? "" : movie.id);
+  const activeImdb = imdbId || (movie.id.startsWith("tt") ? movie.id : "");
+  const fallbackId = movie.id;
+
   const currentEmbedUrl = mediaType === "movie"
-    ? selectedProvider.getMovieUrl(movie.id)
-    : selectedProvider.getTvUrl(movie.id, season, episode);
+    ? selectedProvider.getMovieUrl(activeTmdb, activeImdb, fallbackId)
+    : selectedProvider.getTvUrl(activeTmdb, activeImdb, fallbackId, season, episode);
 
   const handleRefresh = () => {
     setIframeKey((prev) => prev + 1);
+  };
+
+  const handleNextProvider = () => {
+    setSelectedProviderIndex((prev) => (prev + 1) % PROVIDERS.length);
   };
 
   const toggleFullscreen = () => {
@@ -83,17 +200,15 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
     if (elem) {
       if (!document.fullscreenElement) {
         elem.requestFullscreen().catch((err) => console.error("Fullscreen error:", err));
-        setIsFullscreen(true);
       } else {
         document.exitFullscreen().catch((err) => console.error("Exit fullscreen error:", err));
-        setIsFullscreen(false);
       }
     }
   };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/90 backdrop-blur-lg flex items-center justify-center p-3 sm:p-6">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -115,9 +230,13 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
                   <span className="text-xs text-gray-400 font-mono">({movie.year})</span>
                 </div>
                 <p className="text-[11px] text-gray-500 font-mono flex items-center gap-2">
-                  <span>IMDb ID: <strong className="text-imdb">{movie.id}</strong></span>
-                  <span>•</span>
-                  <span>Stream Provider: <strong className="text-gray-300">{selectedProvider.name}</strong></span>
+                  <span>TMDB ID: <strong className="text-amber-400">{activeTmdb || "Resolving..."}</strong></span>
+                  {activeImdb && (
+                    <>
+                      <span>•</span>
+                      <span>IMDb ID: <strong className="text-imdb">{activeImdb}</strong></span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -125,12 +244,21 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
             {/* Top Right Action Buttons */}
             <div className="flex items-center gap-2">
               <button
+                onClick={handleNextProvider}
+                className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Switch to next server"
+              >
+                <span>Switch Server</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
                 onClick={handleRefresh}
                 className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Reload video stream"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Reload Server</span>
+                <span className="hidden sm:inline">Reload</span>
               </button>
 
               <button
@@ -161,31 +289,32 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
             </div>
           </div>
 
-          {/* Player Navigation & Server Bar */}
-          <div className="bg-[#020203] border-b border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-            {/* Server Selector Chips */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full lg:w-auto">
-              <span className="text-[10px] uppercase tracking-wider font-mono text-gray-500 mr-1 shrink-0 flex items-center gap-1">
-                <Radio className="w-3 h-3 text-imdb" /> Server:
-              </span>
-              {PROVIDERS.map((prov) => (
-                <button
-                  key={prov.id}
-                  onClick={() => setSelectedProvider(prov)}
-                  className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-medium transition-all shrink-0 flex items-center gap-1.5 cursor-pointer ${
-                    selectedProvider.id === prov.id
-                      ? "bg-imdb text-black font-bold border-imdb shadow-lg"
-                      : "bg-white/5 hover:bg-white/10 border-white/10 text-gray-300 hover:text-white"
-                  }`}
+          {/* Player Server Control Bar */}
+          <div className="bg-[#020203] border-b border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
+            {/* Server Selector Dropdown */}
+            <div className="flex items-center gap-2.5">
+              <label htmlFor="server-select" className="text-xs uppercase tracking-wider font-mono text-gray-400 shrink-0 flex items-center gap-1.5 font-bold">
+                <Server className="w-3.5 h-3.5 text-imdb" />
+                <span>Select Server:</span>
+              </label>
+              <div className="relative">
+                <select
+                  id="server-select"
+                  value={selectedProviderIndex}
+                  onChange={(e) => setSelectedProviderIndex(Number(e.target.value))}
+                  className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-9 appearance-none shadow-md hover:bg-[#202026] transition-all"
                 >
-                  <span>{prov.name}</span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                    selectedProvider.id === prov.id ? "bg-black/20 text-black" : "bg-white/10 text-gray-400"
-                  }`}>
-                    {prov.badge}
-                  </span>
-                </button>
-              ))}
+                  {PROVIDERS.map((prov, index) => (
+                    <option key={prov.id} value={index} className="bg-[#121215] text-white py-1">
+                      {index + 1}. {prov.name} — [{prov.badge}]
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold hidden sm:inline-block">
+                {selectedProvider.badge}
+              </span>
             </div>
 
             {/* Media Mode Toggle (Movie vs TV Show) */}
@@ -220,7 +349,7 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
                       onChange={(e) => setSeason(Number(e.target.value))}
                       className="bg-transparent text-white border-none focus:outline-none cursor-pointer font-bold"
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => (
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((s) => (
                         <option key={s} value={s} className="bg-black text-white">
                           Season {s}
                         </option>
@@ -235,7 +364,7 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
                       onChange={(e) => setEpisode(Number(e.target.value))}
                       className="bg-transparent text-white border-none focus:outline-none cursor-pointer font-bold"
                     >
-                      {Array.from({ length: 24 }, (_, i) => i + 1).map((e) => (
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map((e) => (
                         <option key={e} value={e} className="bg-black text-white">
                           Ep {e}
                         </option>
@@ -253,9 +382,9 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
             <iframe
-              key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}`}
+              key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}`}
               src={currentEmbedUrl}
-              title={`${movie.title} Stream Player`}
+              title={`${movie.title} Stream Player - ${selectedProvider.name}`}
               className="w-full h-full border-0"
               allowFullScreen
               allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
@@ -263,14 +392,23 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
           </div>
 
           {/* Footer Notice & Troubleshooting Tips */}
-          <div className="bg-[#121215] border-t border-white/10 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-gray-400 font-mono">
+          <div className="bg-[#121215] border-t border-white/10 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono">
             <div className="flex items-center gap-2 text-emerald-400">
               <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>Connected to VidSrc2 API embed provider ({selectedProvider.name})</span>
+              <span>Connected to {selectedProvider.name} server</span>
             </div>
-            <p className="text-gray-500 text-center sm:text-right">
-              If video is buffering or blocked, click another server above (e.g., 2Embed, VidSrc Pro) or disable aggressive adblockers.
-            </p>
+            
+            <div className="flex items-center gap-2 text-amber-400/90 text-center sm:text-right">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>Media unavailable on this server? Click </span>
+              <button
+                onClick={handleNextProvider}
+                className="underline hover:text-amber-300 font-bold cursor-pointer"
+              >
+                Switch Server
+              </button>
+              <span> to try VidSrc.cc, Embed.su, or VidSrc Pro.</span>
+            </div>
           </div>
         </motion.div>
       </div>

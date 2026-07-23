@@ -50,11 +50,15 @@ export async function transformTmdbMovie(item: any): Promise<Movie> {
   const rating = item.vote_average ? item.vote_average.toFixed(1) : "8.0";
   const votes = item.vote_count ? `${(item.vote_count / 1000).toFixed(1)}K` : "100K";
 
-  // Use IMDb ID if available, otherwise numeric TMDB ID
-  const id = item.imdb_id || (item.external_ids?.imdb_id) || String(item.id);
+  // Store both IMDb ID and TMDB ID
+  const tmdbId = String(item.tmdb_id || item.id || "");
+  const imdbId = item.imdb_id || (item.external_ids?.imdb_id) || "";
+  const primaryId = imdbId || tmdbId;
 
   return {
-    id,
+    id: primaryId,
+    tmdbId,
+    imdbId,
     title: item.title || item.original_title || "Untitled Movie",
     year,
     runtime: item.runtime ? `${item.runtime} min` : "120 min",
