@@ -98,6 +98,35 @@ export default function DownloadsView({
         </div>
       </div>
 
+      {/* NFO File Format Explanation Callout Box */}
+      <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+        <div className="flex items-center gap-2 text-imdb font-bold text-sm">
+          <Sparkles className="w-4 h-4" />
+          <span>Understanding File Formats & How To Open Them</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-300">
+          <div className="p-3.5 bg-black/40 rounded-xl border border-white/5 space-y-1.5">
+            <div className="font-bold text-white flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 bg-imdb text-black font-mono font-black text-[10px] rounded">.MP4</span>
+              <span>Playable Video File</span>
+            </div>
+            <p className="text-gray-400 text-[11px] leading-relaxed">
+              Downloads an actual standard video file directly to your device downloads folder. Opens natively in VLC, QuickTime, Windows Media Player, or any mobile phone.
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-black/40 rounded-xl border border-white/5 space-y-1.5">
+            <div className="font-bold text-white flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 bg-white/20 text-white font-mono font-black text-[10px] rounded">.NFO</span>
+              <span>Cinema Info & Metadata File</span>
+            </div>
+            <p className="text-gray-400 text-[11px] leading-relaxed">
+              An <strong>.NFO (Info)</strong> file is a standard text file containing cinema metadata (resolution, bitrate, cast, plot summary). Open it with <strong>Notepad</strong> (Windows), <strong>TextEdit</strong> (Mac), <strong>VS Code</strong>, or media centers like <strong>Plex / Kodi / Jellyfin</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Downloads List / Grid */}
       {downloads.length === 0 ? (
         /* Empty State */

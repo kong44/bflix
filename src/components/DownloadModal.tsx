@@ -210,8 +210,23 @@ export default function DownloadModal({
     }
   }, [progress, status]);
 
-  // Handle actual browser file trigger (e.g. sample MP4 video / NFO cinema file download)
-  const triggerActualBrowserDownload = () => {
+  // Handle actual browser video download (.mp4)
+  const triggerVideoDownload = () => {
+    // Sample open video clip URL (e.g. Big Buck Bunny / Blender Foundation sample MP4 stream)
+    const sampleVideoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    
+    // Create link to trigger browser download
+    const a = document.createElement("a");
+    a.href = sampleVideoUrl;
+    a.target = "_blank";
+    a.download = `${movie.title.replace(/[^a-zA-Z0-9]/g, "_")}_${selectedQuality.toUpperCase()}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Handle actual browser metadata package download (.nfo)
+  const triggerNfoDownload = () => {
     const fileContent = `=====================================================
 BFLIX CINEMA STREAMING - OFFICIAL OFFLINE MEDIA PACKAGE
 =====================================================
@@ -371,14 +386,23 @@ Status: Verified Offline High-Definition Stream File
                       </button>
                     )}
                     {status === "completed" && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
-                          onClick={triggerActualBrowserDownload}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-semibold transition-colors"
-                          title="Save package file to device"
+                          onClick={triggerVideoDownload}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-imdb hover:bg-imdb-hover text-black font-bold rounded-lg text-xs transition-colors shadow-md"
+                          title="Save playable MP4 video file to device"
                         >
                           <FolderDown className="w-3.5 h-3.5" />
-                          <span>Save File</span>
+                          <span>Save MP4 Video</span>
+                        </button>
+
+                        <button
+                          onClick={triggerNfoDownload}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-gray-200 rounded-lg text-xs font-semibold transition-colors"
+                          title="Save cinema metadata file (.nfo)"
+                        >
+                          <FileVideo className="w-3.5 h-3.5 text-imdb" />
+                          <span>Save NFO Meta</span>
                         </button>
 
                         {onPlayOffline && (
@@ -387,9 +411,9 @@ Status: Verified Offline High-Definition Stream File
                               onClose();
                               onPlayOffline(movie);
                             }}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-imdb hover:bg-imdb-hover text-black font-bold rounded-lg text-xs transition-colors"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-semibold transition-colors"
                           >
-                            <Play className="w-3.5 h-3.5 fill-black" />
+                            <Play className="w-3.5 h-3.5 fill-emerald-300" />
                             <span>Play Stream</span>
                           </button>
                         )}
@@ -521,13 +545,24 @@ Status: Verified Offline High-Definition Stream File
                 <span>Start Download ({activeQualityObj.size})</span>
               </button>
             ) : status === "completed" ? (
-              <button
-                onClick={triggerActualBrowserDownload}
-                className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs shadow-lg shadow-emerald-500/10 transition-all"
-              >
-                <FolderDown className="w-4 h-4" />
-                <span>Save Offline File To PC</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={triggerNfoDownload}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-semibold rounded-xl text-xs transition-all"
+                  title="Download .nfo metadata file"
+                >
+                  <FileVideo className="w-4 h-4 text-imdb" />
+                  <span>Save .NFO Meta</span>
+                </button>
+                <button
+                  onClick={triggerVideoDownload}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl text-xs shadow-lg shadow-emerald-500/10 transition-all"
+                  title="Download .mp4 video file"
+                >
+                  <FolderDown className="w-4 h-4" />
+                  <span>Save MP4 Video</span>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => setStatus("downloading")}
