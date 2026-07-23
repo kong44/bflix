@@ -245,10 +245,13 @@ export default function App() {
       <div className="absolute inset-0 bg-noise opacity-[0.015] pointer-events-none z-40" />
 
       {/* Modern High-End Top Navigation Header */}
-      <header className="sticky top-0 bg-[#020203]/85 backdrop-blur-md border-b border-white/5 z-30 px-6 sm:px-8 py-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => { setActiveTab("browse"); handleClearSearch(); }}>
-          <div className="bg-imdb text-black font-black px-2.5 py-0.5 rounded text-xl italic tracking-tighter">BFlix</div>
-          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5">CINEMA STREAM</span>
+      <header className="sticky top-0 bg-[#020203]/85 backdrop-blur-md border-b border-white/5 z-30 px-6 sm:px-8 py-3.5 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => { setActiveTab("browse"); handleClearSearch(); }}>
+          <div className="bg-imdb font-black px-2.5 py-0.5 rounded text-xl italic tracking-tight shadow-md select-none inline-flex items-center">
+            <span className="text-white font-black font-extrabold mr-[3px]">B</span>
+            <span className="text-black font-black">Flix</span>
+          </div>
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5 hidden xs:inline-block">CINEMA STREAM</span>
         </div>
 
         {/* Tab Selection Navigation */}
