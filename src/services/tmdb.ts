@@ -2,7 +2,7 @@ import { Movie, MovieDetail } from "../types";
 
 // TMDB API Configuration
 const env = (import.meta as any).env || {};
-const TMDB_API_KEY = env.VITE_TMDB_API_KEY || "15d2fb6030da5f74303f47bf9d0e0a7e";
+const TMDB_API_KEY = env.TMDB_API_KEY || env.VITE_TMDB_API_KEY || "15d2fb6030da5f74303f47bf9d0e0a7e";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
