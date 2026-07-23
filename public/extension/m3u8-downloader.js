@@ -2,35 +2,47 @@
 
 export async function parseM3U8(m3u8Url) {
   const response = await fetch(m3u8Url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} - Could not fetch M3U8 playlist`);
+  }
   const text = await response.text();
-
-  const baseUrl = m3u8Url.substring(0, m3u8Url.lastIndexOf("/") + 1);
   const lines = text.split("\n");
   const segments = [];
 
-  // If master playlist with multiple qualities, pick highest
+  // If master playlist with multiple qualities, pick highest resolution variant
   if (text.includes("#EXT-X-STREAM-INF")) {
     let subPlaylistUrl = null;
     for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith("#EXT-X-STREAM-INF")) {
-        subPlaylistUrl = lines[i + 1]?.trim();
-        if (subPlaylistUrl) break;
+      const line = lines[i].trim();
+      if (line.startsWith("#EXT-X-STREAM-INF")) {
+        // Next non-comment line is the variant URL
+        let j = i + 1;
+        while (j < lines.length && (lines[j].trim().startsWith("#") || !lines[j].trim())) {
+          j++;
+        }
+        if (lines[j]) {
+          subPlaylistUrl = lines[j].trim();
+          break;
+        }
       }
     }
     if (subPlaylistUrl) {
-      const targetUrl = subPlaylistUrl.startsWith("http")
-        ? subPlaylistUrl
-        : baseUrl + subPlaylistUrl;
+      const targetUrl = new URL(subPlaylistUrl, m3u8Url).href;
       return parseM3U8(targetUrl);
     }
   }
 
-  // Parse TS Segment URLs
+  // Parse TS Segment URLs cleanly using URL constructor
   for (let line of lines) {
     line = line.trim();
     if (line && !line.startsWith("#")) {
-      const segmentUrl = line.startsWith("http") ? line : baseUrl + line;
-      segments.push(segmentUrl);
+      try {
+        const segmentUrl = new URL(line, m3u8Url).href;
+        segments.push(segmentUrl);
+      } catch (e) {
+        // Fallback simple concat
+        segments.push(line);
+      }
     }
   }
 
@@ -59,8 +71,26 @@ export async function downloadM3u8AsMp4(m3u8Url, filename = "Video_Download.mp4"
     const chunkBuffers = [];
     for (let i = 0; i < segments.length; i++) {
       const segUrl = segments[i];
-      const res = await fetch(segUrl);
-      if (!res.ok) throw new Error(`Failed segment ${i + 1}`);
+      let res;
+      try {
+        res = await fetch(segUrl, { mode: "cors" });
+        if (!res.ok) {
+          // Retry without explicit cors mode if blocked
+          res = await fetch(segUrl);
+        }
+      } catch (e) {
+        // Retry
+        try {
+          res = await fetch(segUrl);
+        } catch (retryErr) {
+          throw new Error(`Failed segment ${i + 1} (${retryErr.message || 'CORS / Network Block'}). Try 'Copy FFmpeg' or 'Copy URL' into IDM/VLC.`);
+        }
+      }
+
+      if (!res.ok) {
+        throw new Error(`Failed segment ${i + 1} (HTTP ${res.status}). CDN blocked direct segment download. Use 'Copy FFmpeg' or IDM.`);
+      }
+
       const buffer = await res.arrayBuffer();
       chunkBuffers.push(buffer);
 
@@ -109,3 +139,4 @@ export function generateFFmpegCommand(m3u8Url, outputName = "movie.mp4") {
   const safeName = outputName.replace(/[^a-zA-Z0-9_-]/g, "_");
   return `ffmpeg -i "${m3u8Url}" -c copy -bsf:a aac_adtstoasc "${safeName}.mp4"`;
 }
+
