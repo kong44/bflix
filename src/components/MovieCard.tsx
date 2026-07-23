@@ -9,12 +9,12 @@ interface MovieCardProps {
   movie: Movie;
   onSelect: (movie: Movie) => void;
   onStream?: (movie: Movie) => void;
-  onDownload?: (movie: Movie) => void;
+  onDownloadMp4?: (movie: Movie) => void;
   isWatchlisted: boolean;
   onToggleWatchlist: (movie: Movie, e: React.MouseEvent) => void;
 }
 
-export default function MovieCard({ movie, onSelect, onStream, onDownload, isWatchlisted, onToggleWatchlist }: MovieCardProps) {
+export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, isWatchlisted, onToggleWatchlist }: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -50,18 +50,18 @@ export default function MovieCard({ movie, onSelect, onStream, onDownload, isWat
           </div>
         </div>
 
-        {/* Action Buttons Top Right: Watchlist + Download */}
+        {/* Action Buttons Top Right */}
         <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-          {onDownload && (
+          {onDownloadMp4 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDownload(movie);
+                onDownloadMp4(movie);
               }}
-              className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-400 hover:text-imdb transition-all shadow-md"
-              title="Download Movie for Offline Viewing"
+              className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-300 hover:text-imdb transition-all shadow-md"
+              title="Download MP4 Video File"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-4 h-4 text-imdb" />
             </button>
           )}
 
@@ -93,16 +93,16 @@ export default function MovieCard({ movie, onSelect, onStream, onDownload, isWat
             </button>
           )}
 
-          {onDownload && (
+          {onDownloadMp4 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onDownload(movie);
+                onDownloadMp4(movie);
               }}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg w-full justify-center transition-colors backdrop-blur-md border border-white/10"
             >
               <Download className="w-3.5 h-3.5 text-imdb" />
-              <span>Download Movie</span>
+              <span>Download MP4</span>
             </button>
           )}
         </div>

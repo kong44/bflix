@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from "motion/react";
 interface StreamPlayerModalProps {
   movie: Movie;
   onClose: () => void;
-  onDownload?: (movie: Movie) => void;
+  onDownloadMp4?: (movie: Movie) => void;
 }
 
 interface StreamProvider {
@@ -101,7 +101,7 @@ const PROVIDERS: StreamProvider[] = [
   }
 ];
 
-export default function StreamPlayerModal({ movie, onClose, onDownload }: StreamPlayerModalProps) {
+export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: StreamPlayerModalProps) {
   const [selectedProviderIndex, setSelectedProviderIndex] = useState(0);
   const selectedProvider = PROVIDERS[selectedProviderIndex];
 
@@ -245,14 +245,14 @@ export default function StreamPlayerModal({ movie, onClose, onDownload }: Stream
 
             {/* Top Right Action Buttons */}
             <div className="flex items-center gap-2">
-              {onDownload && (
+              {onDownloadMp4 && (
                 <button
-                  onClick={() => onDownload(movie)}
+                  onClick={() => onDownloadMp4(movie)}
                   className="px-3 py-2 bg-imdb/10 hover:bg-imdb/20 border border-imdb/30 text-imdb rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="Download Movie for Offline Viewing"
+                  title="Download MP4 Video File"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Download</span>
+                  <span className="hidden sm:inline">Download MP4</span>
                 </button>
               )}
 
