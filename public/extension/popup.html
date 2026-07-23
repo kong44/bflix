@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BFLIX Stream Catcher & MP4 Downloader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 380px;
+      background: #0d0d11;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 15px;
+      color: #f5c518;
+    }
+    .badge {
+      background: rgba(245, 197, 24, 0.15);
+      color: #f5c518;
+      border: 1px solid rgba(245, 197, 24, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 28px 12px;
+      color: #8e8e93;
+    }
+    .stream-card {
+      background: #17171d;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .stream-type {
+      font-size: 11px;
+      font-weight: bold;
+      color: #10b981;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stream-url {
+      font-family: monospace;
+      font-size: 10px;
+      color: #a1a1aa;
+      word-break: break-all;
+      background: rgba(0,0,0,0.3);
+      padding: 6px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      max-height: 48px;
+      overflow-y: auto;
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    button {
+      flex: 1;
+      background: #27272a;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #3f3f46;
+    }
+    button.primary {
+      background: #f5c518;
+      color: #000;
+      border: none;
+    }
+    button.primary:hover {
+      background: #e0b010;
+    }
+    .progress-box {
+      margin-top: 8px;
+      background: rgba(0,0,0,0.4);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      display: none;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #f5c518;
+      width: 0%;
+      border-radius: 2px;
+      margin-top: 4px;
+      transition: width 0.3s;
+    }
+    .footer {
+      font-size: 10px;
+      color: #71717a;
+      text-align: center;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <span>🎬 BFLIX Stream Catcher</span>
+    </div>
+    <span class="badge">M3U8 ➔ MP4</span>
+  </div>
+
+  <div id="streams-container">
+    <div class="empty-state">
+      <p>🔍 Play a movie stream in the player to catch video URLs (.m3u8 / .mp4).</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    BFLIX Extension • Converts HLS .m3u8 stream segments to MP4
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
