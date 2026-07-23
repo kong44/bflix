@@ -4,6 +4,7 @@ import MovieCard from "./components/MovieCard";
 import MovieCardSkeleton from "./components/MovieCardSkeleton";
 import MovieDetailModal from "./components/MovieDetailModal";
 import StreamPlayerModal from "./components/StreamPlayerModal";
+import DownloadModal from "./components/DownloadModal";
 import AIRecommender from "./components/AIRecommender";
 import { triggerMp4Download } from "./utils/downloadMp4";
 import { 
@@ -66,20 +67,13 @@ export default function App() {
   // Modals / detailed view state
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [streamMovie, setStreamMovie] = useState<Movie | null>(null);
-
-  // Download notification toast state
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [downloadModalMovie, setDownloadModalMovie] = useState<Movie | null>(null);
   
   // Hero Carousel State
   const [heroIndex, setHeroIndex] = useState(0);
 
-  // Trigger MP4 Download with toast
-  const handleDownloadMp4 = (movie: Movie) => {
-    const filename = triggerMp4Download(movie.title);
-    setToastMessage(`Downloading ${movie.title} (${filename})...`);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
+  const handleOpenDownloadModal = (movie: Movie) => {
+    setDownloadModalMovie(movie);
   };
 
   // Load movies by category or pagination
@@ -378,9 +372,9 @@ export default function App() {
                         <span>Watch Stream</span>
                       </button>
                       <button
-                        onClick={() => handleDownloadMp4(activeHero)}
+                        onClick={() => handleOpenDownloadModal(activeHero)}
                         className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-5 py-3 rounded-xl font-medium text-xs flex items-center transition-colors backdrop-blur-md cursor-pointer"
-                        title="Download MP4 Video File"
+                        title="Download & Stream Options"
                       >
                         <Download className="w-3.5 h-3.5 mr-2 text-imdb" />
                         <span>Download MP4</span>
@@ -529,7 +523,7 @@ export default function App() {
                               movie={movie}
                               onSelect={setSelectedMovie}
                               onStream={setStreamMovie}
-                              onDownloadMp4={handleDownloadMp4}
+                              onDownloadMp4={handleOpenDownloadModal}
                               isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                               onToggleWatchlist={handleToggleWatchlist}
                             />
@@ -549,7 +543,7 @@ export default function App() {
                             movie={movie}
                             onSelect={setSelectedMovie}
                             onStream={setStreamMovie}
-                            onDownloadMp4={handleDownloadMp4}
+                            onDownloadMp4={handleOpenDownloadModal}
                             isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                             onToggleWatchlist={handleToggleWatchlist}
                           />
@@ -629,7 +623,7 @@ export default function App() {
                       movie={movie}
                       onSelect={setSelectedMovie}
                       onStream={setStreamMovie}
-                      onDownloadMp4={handleDownloadMp4}
+                      onDownloadMp4={handleOpenDownloadModal}
                       isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                       onToggleWatchlist={handleToggleWatchlist}
                     />
@@ -659,7 +653,7 @@ export default function App() {
                     movie={movie}
                     onSelect={setSelectedMovie}
                     onStream={setStreamMovie}
-                    onDownloadMp4={handleDownloadMp4}
+                    onDownloadMp4={handleOpenDownloadModal}
                     isWatchlisted={true}
                     onToggleWatchlist={handleToggleWatchlist}
                   />
@@ -699,33 +693,13 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Toast Notification Banner for MP4 Download */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-6 right-6 z-50 bg-[#121215] border border-imdb/40 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-xl"
-          >
-            <div className="p-2 bg-imdb/20 text-imdb rounded-xl">
-              <Download className="w-5 h-5 animate-bounce" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-imdb">Downloading MP4 File</p>
-              <p className="text-[11px] text-gray-300 font-mono">{toastMessage}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Cinematic Detailed Modal popup */}
       {selectedMovie && (
         <MovieDetailModal
           movie={selectedMovie}
           onClose={() => setSelectedMovie(null)}
           onStream={setStreamMovie}
-          onDownloadMp4={handleDownloadMp4}
+          onDownloadMp4={handleOpenDownloadModal}
         />
       )}
 
@@ -734,7 +708,16 @@ export default function App() {
         <StreamPlayerModal
           movie={streamMovie}
           onClose={() => setStreamMovie(null)}
-          onDownloadMp4={handleDownloadMp4}
+          onDownloadMp4={handleOpenDownloadModal}
+        />
+      )}
+
+      {/* Download & Stream Hub Modal */}
+      {downloadModalMovie && (
+        <DownloadModal
+          movie={downloadModalMovie}
+          onClose={() => setDownloadModalMovie(null)}
+          onStream={(movie) => setStreamMovie(movie)}
         />
       )}
     </div>
