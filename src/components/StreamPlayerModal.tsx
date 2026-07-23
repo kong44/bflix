@@ -14,9 +14,11 @@ import {
   ChevronDown,
   Server,
   AlertCircle,
-  Download
+  Download,
+  Video
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import VideoJSPlayer from "./VideoJSPlayer";
 
 interface StreamPlayerModalProps {
   movie: Movie;
@@ -105,6 +107,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const [selectedProviderIndex, setSelectedProviderIndex] = useState(0);
   const selectedProvider = PROVIDERS[selectedProviderIndex];
 
+  const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
   const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -304,31 +307,58 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
           {/* Player Server Control Bar */}
           <div className="bg-[#020203] border-b border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
-            {/* Server Selector Dropdown */}
-            <div className="flex items-center gap-2.5">
-              <label htmlFor="server-select" className="text-xs uppercase tracking-wider font-mono text-gray-400 shrink-0 flex items-center gap-1.5 font-bold">
-                <Server className="w-3.5 h-3.5 text-imdb" />
-                <span>Select Server:</span>
-              </label>
-              <div className="relative">
-                <select
-                  id="server-select"
-                  value={selectedProviderIndex}
-                  onChange={(e) => setSelectedProviderIndex(Number(e.target.value))}
-                  className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-9 appearance-none shadow-md hover:bg-[#202026] transition-all"
+            {/* Player Engine Switcher (Embed vs Video.js HTML5) */}
+            <div className="flex items-center gap-2">
+              <div className="bg-white/5 border border-white/10 p-1 rounded-xl flex items-center gap-1">
+                <button
+                  onClick={() => setPlayerEngine("embed")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    playerEngine === "embed" ? "bg-amber-400 text-black shadow-md" : "text-gray-400 hover:text-white"
+                  }`}
                 >
-                  {PROVIDERS.map((prov, index) => (
-                    <option key={prov.id} value={index} className="bg-[#121215] text-white py-1">
-                      {index + 1}. {prov.name} — [{prov.badge}]
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Server className="w-3.5 h-3.5" />
+                  <span>Embed HD Servers</span>
+                </button>
+
+                <button
+                  onClick={() => setPlayerEngine("videojs")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    playerEngine === "videojs" ? "bg-imdb text-black shadow-md" : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Video.js HTML5 Player</span>
+                </button>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold hidden sm:inline-block">
-                {selectedProvider.badge}
-              </span>
             </div>
+
+            {/* Server Selector Dropdown (Shown only when in embed mode) */}
+            {playerEngine === "embed" && (
+              <div className="flex items-center gap-2.5">
+                <label htmlFor="server-select" className="text-xs uppercase tracking-wider font-mono text-gray-400 shrink-0 flex items-center gap-1.5 font-bold">
+                  <Server className="w-3.5 h-3.5 text-imdb" />
+                  <span>Select Server:</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="server-select"
+                    value={selectedProviderIndex}
+                    onChange={(e) => setSelectedProviderIndex(Number(e.target.value))}
+                    className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-9 appearance-none shadow-md hover:bg-[#202026] transition-all"
+                  >
+                    {PROVIDERS.map((prov, index) => (
+                      <option key={prov.id} value={index} className="bg-[#121215] text-white py-1">
+                        {index + 1}. {prov.name} — [{prov.badge}]
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold hidden sm:inline-block">
+                  {selectedProvider.badge}
+                </span>
+              </div>
+            )}
 
             {/* Media Mode Toggle (Movie vs TV Show) */}
             <div className="flex items-center gap-2 shrink-0">
@@ -389,19 +419,37 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
             </div>
           </div>
 
-          {/* Video Iframe Player Frame */}
+          {/* Video Player Frame Container */}
           <div
             id="stream-iframe-container"
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
-            <iframe
-              key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}`}
-              src={currentEmbedUrl}
-              title={`${movie.title} Stream Player - ${selectedProvider.name}`}
-              className="w-full h-full border-0"
-              allowFullScreen
-              allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
-            />
+            {playerEngine === "videojs" ? (
+              <VideoJSPlayer
+                options={{
+                  autoplay: true,
+                  controls: true,
+                  responsive: true,
+                  fluid: true,
+                  playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                  sources: [
+                    {
+                      src: "https://vjs.zencdn.net/v/oceans.mp4",
+                      type: "video/mp4"
+                    }
+                  ]
+                }}
+              />
+            ) : (
+              <iframe
+                key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}`}
+                src={currentEmbedUrl}
+                title={`${movie.title} Stream Player - ${selectedProvider.name}`}
+                className="w-full h-full border-0"
+                allowFullScreen
+                allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+              />
+            )}
           </div>
 
           {/* Footer Notice & Troubleshooting Tips */}
