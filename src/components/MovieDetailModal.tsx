@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Movie, MovieDetail } from "../types";
-import { X, Star, Calendar, Clock, Trophy, Lightbulb, Sparkles, AlertCircle, ExternalLink, Activity, Film, Play } from "lucide-react";
+import { X, Star, Calendar, Clock, Trophy, Lightbulb, Sparkles, AlertCircle, ExternalLink, Activity, Film, Play, Download } from "lucide-react";
 import PosterFallback from "./PosterFallback";
 import { fetchMovieDetails } from "../services/tmdb";
 import { motion, AnimatePresence } from "motion/react";
@@ -9,6 +9,7 @@ interface MovieDetailModalProps {
   movie: Movie;
   onClose: () => void;
   onStream?: (movie: Movie) => void;
+  onDownload?: (movie: Movie) => void;
 }
 
 const LOADING_STEPS = [
@@ -19,7 +20,7 @@ const LOADING_STEPS = [
   "Assembling AI critical review panels..."
 ];
 
-export default function MovieDetailModal({ movie, onClose, onStream }: MovieDetailModalProps) {
+export default function MovieDetailModal({ movie, onClose, onStream, onDownload }: MovieDetailModalProps) {
   const [detail, setDetail] = useState<MovieDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -366,11 +367,20 @@ export default function MovieDetailModal({ movie, onClose, onStream }: MovieDeta
                         <span>Watch Video Stream</span>
                       </button>
                     )}
+                    {onDownload && (
+                      <button
+                        onClick={() => onDownload(movie)}
+                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-5 py-2.5 rounded-full transition-all border border-white/10 cursor-pointer"
+                      >
+                        <Download className="w-4 h-4 text-imdb" />
+                        <span>Download Movie</span>
+                      </button>
+                    )}
                     <a
                       href={`https://www.imdb.com/title/${detail.id}/`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-5 py-2.5 rounded-full transition-all border border-white/10"
+                      className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-medium px-5 py-2.5 rounded-full transition-all border border-white/5"
                     >
                       <ExternalLink className="w-4 h-4" />
                       Official IMDb Profile

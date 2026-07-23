@@ -13,13 +13,15 @@ import {
   ChevronRight, 
   ChevronDown,
   Server,
-  AlertCircle 
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface StreamPlayerModalProps {
   movie: Movie;
   onClose: () => void;
+  onDownload?: (movie: Movie) => void;
 }
 
 interface StreamProvider {
@@ -99,7 +101,7 @@ const PROVIDERS: StreamProvider[] = [
   }
 ];
 
-export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalProps) {
+export default function StreamPlayerModal({ movie, onClose, onDownload }: StreamPlayerModalProps) {
   const [selectedProviderIndex, setSelectedProviderIndex] = useState(0);
   const selectedProvider = PROVIDERS[selectedProviderIndex];
 
@@ -243,6 +245,17 @@ export default function StreamPlayerModal({ movie, onClose }: StreamPlayerModalP
 
             {/* Top Right Action Buttons */}
             <div className="flex items-center gap-2">
+              {onDownload && (
+                <button
+                  onClick={() => onDownload(movie)}
+                  className="px-3 py-2 bg-imdb/10 hover:bg-imdb/20 border border-imdb/30 text-imdb rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Download Movie for Offline Viewing"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
+              )}
+
               <button
                 onClick={handleNextProvider}
                 className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"

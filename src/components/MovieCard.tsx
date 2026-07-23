@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Movie } from "../types";
-import { Star, Bookmark, BookmarkCheck, Sparkles, Film, Play } from "lucide-react";
+import { Star, Bookmark, BookmarkCheck, Sparkles, Film, Play, Download } from "lucide-react";
 import PosterFallback from "./PosterFallback";
 import { motion } from "motion/react";
 
@@ -9,11 +9,12 @@ interface MovieCardProps {
   movie: Movie;
   onSelect: (movie: Movie) => void;
   onStream?: (movie: Movie) => void;
+  onDownload?: (movie: Movie) => void;
   isWatchlisted: boolean;
   onToggleWatchlist: (movie: Movie, e: React.MouseEvent) => void;
 }
 
-export default function MovieCard({ movie, onSelect, onStream, isWatchlisted, onToggleWatchlist }: MovieCardProps) {
+export default function MovieCard({ movie, onSelect, onStream, onDownload, isWatchlisted, onToggleWatchlist }: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -49,18 +50,33 @@ export default function MovieCard({ movie, onSelect, onStream, isWatchlisted, on
           </div>
         </div>
 
-        {/* Watchlist Bookmark */}
-        <button
-          onClick={(e) => onToggleWatchlist(movie, e)}
-          className="absolute top-3 right-3 p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-400 hover:text-imdb transition-all shadow-md z-10"
-          title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
-        >
-          {isWatchlisted ? (
-            <BookmarkCheck className="w-4 h-4 text-imdb fill-imdb/20" />
-          ) : (
-            <Bookmark className="w-4 h-4" />
+        {/* Action Buttons Top Right: Watchlist + Download */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+          {onDownload && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(movie);
+              }}
+              className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-400 hover:text-imdb transition-all shadow-md"
+              title="Download Movie for Offline Viewing"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={(e) => onToggleWatchlist(movie, e)}
+            className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-400 hover:text-imdb transition-all shadow-md"
+            title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
+          >
+            {isWatchlisted ? (
+              <BookmarkCheck className="w-4 h-4 text-imdb fill-imdb/20" />
+            ) : (
+              <Bookmark className="w-4 h-4" />
+            )}
+          </button>
+        </div>
 
         {/* Hover Action Sheet Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2">
@@ -76,10 +92,19 @@ export default function MovieCard({ movie, onSelect, onStream, isWatchlisted, on
               <span>Watch Stream</span>
             </button>
           )}
-          <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-medium py-2 px-3 rounded-lg w-full justify-center transition-colors backdrop-blur-md border border-white/10">
-            <Film className="w-3.5 h-3.5" />
-            <span>Explore Insights</span>
-          </div>
+
+          {onDownload && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(movie);
+              }}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg w-full justify-center transition-colors backdrop-blur-md border border-white/10"
+            >
+              <Download className="w-3.5 h-3.5 text-imdb" />
+              <span>Download Movie</span>
+            </button>
+          )}
         </div>
       </div>
 

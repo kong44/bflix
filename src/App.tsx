@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Movie } from "./types";
 import MovieCard from "./components/MovieCard";
+import MovieCardSkeleton from "./components/MovieCardSkeleton";
 import MovieDetailModal from "./components/MovieDetailModal";
 import StreamPlayerModal from "./components/StreamPlayerModal";
 import AIRecommender from "./components/AIRecommender";
+import DownloadModal, { DownloadItem } from "./components/DownloadModal";
+import DownloadsView from "./components/DownloadsView";
 import { 
   fetchCuratedMovies, 
   searchMovies, 
@@ -29,13 +32,14 @@ import {
   ChevronDown,
   Info,
   Layers,
-  Grid
+  Grid,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export default function App() {
   // Navigation & UI tabs
-  const [activeTab, setActiveTab] = useState<"browse" | "recommend" | "watchlist">("browse");
+  const [activeTab, setActiveTab] = useState<"browse" | "recommend" | "watchlist" | "downloads">("browse");
   
   // Database state
   const [curatedMovies, setCuratedMovies] = useState<Movie[]>([]);
@@ -59,12 +63,52 @@ export default function App() {
   // Watchlist state
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
   
+  // Downloads state
+  const [downloads, setDownloads] = useState<DownloadItem[]>(() => {
+    try {
+      const stored = localStorage.getItem("bflix_downloads");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [downloadingMovie, setDownloadingMovie] = useState<Movie | null>(null);
+  
   // Modals / detailed view state
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [streamMovie, setStreamMovie] = useState<Movie | null>(null);
   
   // Hero Carousel State
   const [heroIndex, setHeroIndex] = useState(0);
+
+  // Sync downloads state to local storage
+  useEffect(() => {
+    try {
+      localStorage.setItem("bflix_downloads", JSON.stringify(downloads));
+    } catch (err) {
+      console.error("Failed to save downloads:", err);
+    }
+  }, [downloads]);
+
+  const handleStartDownload = (downloadItem: DownloadItem) => {
+    setDownloads((prev) => {
+      const existingIndex = prev.findIndex((d) => d.id === downloadItem.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = downloadItem;
+        return updated;
+      }
+      return [downloadItem, ...prev];
+    });
+  };
+
+  const handleDeleteDownload = (downloadId: string) => {
+    setDownloads((prev) => prev.filter((d) => d.id !== downloadId));
+  };
+
+  const handleClearAllDownloads = () => {
+    setDownloads([]);
+  };
 
   // Load movies by category or pagination
   useEffect(() => {
@@ -296,6 +340,23 @@ export default function App() {
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab("downloads")}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
+              activeTab === "downloads"
+                ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+            }`}
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Downloads</span>
+            {downloads.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-amber-400 text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-[#020203]">
+                {downloads.length}
+              </span>
+            )}
+          </button>
         </nav>
       </header>
 
@@ -360,6 +421,14 @@ export default function App() {
                       >
                         <Play className="w-3.5 h-3.5 mr-2 fill-black" />
                         <span>Watch Stream</span>
+                      </button>
+                      <button
+                        onClick={() => setDownloadingMovie(activeHero)}
+                        className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-5 py-3 rounded-xl font-medium text-xs flex items-center transition-colors backdrop-blur-md cursor-pointer"
+                        title="Download Movie for Offline Playback"
+                      >
+                        <Download className="w-3.5 h-3.5 mr-2 text-imdb" />
+                        <span>Download</span>
                       </button>
                       <button
                         onClick={() => setSelectedMovie(activeHero)}
@@ -483,12 +552,11 @@ export default function App() {
 
               {/* DYNAMIC RESULTS/CURATED GRID */}
               {(searchLoading || curatedLoading) ? (
-                /* Interactive Catalog Loader */
-                <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-                  <Loader2 className="w-10 h-10 text-imdb animate-spin" />
-                  <p className="text-sm text-gray-400 font-mono italic">
-                    Fetching {currentCategoryObj.name} movies (Page {currentPage})...
-                  </p>
+                /* Skeleton Loader Cards Grid */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <MovieCardSkeleton key={idx} />
+                  ))}
                 </div>
               ) : (
                 <div className="space-y-10">
@@ -506,6 +574,7 @@ export default function App() {
                               movie={movie}
                               onSelect={setSelectedMovie}
                               onStream={setStreamMovie}
+                              onDownload={setDownloadingMovie}
                               isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                               onToggleWatchlist={handleToggleWatchlist}
                             />
@@ -525,6 +594,7 @@ export default function App() {
                             movie={movie}
                             onSelect={setSelectedMovie}
                             onStream={setStreamMovie}
+                            onDownload={setDownloadingMovie}
                             isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                             onToggleWatchlist={handleToggleWatchlist}
                           />
@@ -604,6 +674,7 @@ export default function App() {
                       movie={movie}
                       onSelect={setSelectedMovie}
                       onStream={setStreamMovie}
+                      onDownload={setDownloadingMovie}
                       isWatchlisted={watchlist.some((w) => w.id === movie.id)}
                       onToggleWatchlist={handleToggleWatchlist}
                     />
@@ -633,6 +704,7 @@ export default function App() {
                     movie={movie}
                     onSelect={setSelectedMovie}
                     onStream={setStreamMovie}
+                    onDownload={setDownloadingMovie}
                     isWatchlisted={true}
                     onToggleWatchlist={handleToggleWatchlist}
                   />
@@ -660,6 +732,18 @@ export default function App() {
             )}
           </div>
         )}
+
+        {/* TAB 4: OFFLINE DOWNLOADS LIBRARY */}
+        {activeTab === "downloads" && (
+          <DownloadsView
+            downloads={downloads}
+            onPlayMovie={(movie) => setStreamMovie(movie)}
+            onOpenDownloadModal={(movie) => setDownloadingMovie(movie)}
+            onDeleteDownload={handleDeleteDownload}
+            onClearAllDownloads={handleClearAllDownloads}
+            onNavigateBrowse={() => setActiveTab("browse")}
+          />
+        )}
       </main>
 
       {/* Footer credits */}
@@ -678,6 +762,7 @@ export default function App() {
           movie={selectedMovie}
           onClose={() => setSelectedMovie(null)}
           onStream={setStreamMovie}
+          onDownload={setDownloadingMovie}
         />
       )}
 
@@ -686,6 +771,21 @@ export default function App() {
         <StreamPlayerModal
           movie={streamMovie}
           onClose={() => setStreamMovie(null)}
+          onDownload={setDownloadingMovie}
+        />
+      )}
+
+      {/* Interactive Download Modal */}
+      {downloadingMovie && (
+        <DownloadModal
+          movie={downloadingMovie}
+          onClose={() => setDownloadingMovie(null)}
+          onStartDownload={handleStartDownload}
+          onPlayOffline={(movie) => {
+            setDownloadingMovie(null);
+            setStreamMovie(movie);
+          }}
+          existingDownload={downloads.find((d) => d.movie.id === downloadingMovie.id)}
         />
       )}
     </div>
