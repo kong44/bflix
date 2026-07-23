@@ -49,6 +49,54 @@ export async function parseM3U8(m3u8Url) {
   return { segments, rawPlaylist: text };
 }
 
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function fetchSegmentWithRetry(segUrl, segmentIndex, onProgress, maxRetries = 5) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      let res = await fetch(segUrl, { mode: "cors" });
+      if (!res.ok) {
+        // Try fallback without explicit cors mode
+        res = await fetch(segUrl);
+      }
+
+      if (res.status === 429) {
+        attempt++;
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        if (onProgress) {
+          onProgress({
+            status: "rate_limited",
+            message: `CDN Rate Limit (429) on segment ${segmentIndex}. Pausing ${backoffMs / 1000}s (Retry ${attempt}/${maxRetries})...`
+          });
+        }
+        await delay(backoffMs);
+        continue;
+      }
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      return await res.arrayBuffer();
+    } catch (err) {
+      if (err.message && err.message.includes("429")) {
+        attempt++;
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        await delay(backoffMs);
+        continue;
+      }
+
+      if (attempt >= maxRetries - 1) {
+        throw new Error(`Failed segment ${segmentIndex} (${err.message}). CDN rate-limited or blocked request. Use 'Copy FFmpeg' or IDM.`);
+      }
+      attempt++;
+      await delay(1000 * attempt);
+    }
+  }
+  throw new Error(`Failed segment ${segmentIndex} after ${maxRetries} retries due to HTTP 429 / Rate limit.`);
+}
+
 export async function downloadM3u8AsMp4(m3u8Url, filename = "Video_Download.mp4", onProgress) {
   try {
     if (onProgress) onProgress({ status: "parsing", message: "Parsing M3U8 playlist..." });
@@ -71,27 +119,9 @@ export async function downloadM3u8AsMp4(m3u8Url, filename = "Video_Download.mp4"
     const chunkBuffers = [];
     for (let i = 0; i < segments.length; i++) {
       const segUrl = segments[i];
-      let res;
-      try {
-        res = await fetch(segUrl, { mode: "cors" });
-        if (!res.ok) {
-          // Retry without explicit cors mode if blocked
-          res = await fetch(segUrl);
-        }
-      } catch (e) {
-        // Retry
-        try {
-          res = await fetch(segUrl);
-        } catch (retryErr) {
-          throw new Error(`Failed segment ${i + 1} (${retryErr.message || 'CORS / Network Block'}). Try 'Copy FFmpeg' or 'Copy URL' into IDM/VLC.`);
-        }
-      }
 
-      if (!res.ok) {
-        throw new Error(`Failed segment ${i + 1} (HTTP ${res.status}). CDN blocked direct segment download. Use 'Copy FFmpeg' or IDM.`);
-      }
-
-      const buffer = await res.arrayBuffer();
+      // Fetch segment with retry and exponential backoff
+      const buffer = await fetchSegmentWithRetry(segUrl, i + 1, onProgress);
       chunkBuffers.push(buffer);
 
       if (onProgress) {
@@ -103,6 +133,9 @@ export async function downloadM3u8AsMp4(m3u8Url, filename = "Video_Download.mp4"
           percent: Math.round(((i + 1) / segments.length) * 100)
         });
       }
+
+      // Small 50ms pause between segment downloads to prevent CDN rate limiting (429)
+      await delay(50);
     }
 
     if (onProgress) onProgress({ status: "converting", message: "Stitching video segments into MP4 file..." });
