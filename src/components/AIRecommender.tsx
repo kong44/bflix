@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Sparkles, Loader2, ArrowRight, Compass } from "lucide-react";
 import { Movie } from "../types";
+import { getAIRecommendations } from "../services/tmdb";
 
 interface AIRecommenderProps {
   onRecommendationsFound: (movies: Movie[]) => void;
@@ -31,21 +32,11 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
     }
 
     try {
-      const res = await fetch("/api/movies/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences: activePrompt })
-      });
-
-      if (!res.ok) {
-        throw new Error("AI Recommendation service is currently offline or rebuilding. Please check if your API key is correctly configured.");
-      }
-
-      const data = await res.json();
-      if (data.success && data.movies) {
-        onRecommendationsFound(data.movies);
+      const recommendations = await getAIRecommendations(activePrompt);
+      if (recommendations && recommendations.length > 0) {
+        onRecommendationsFound(recommendations);
       } else {
-        throw new Error(data.error || "Failed to generate AI recommendations.");
+        throw new Error("No atmospheric matches found. Try refining your keywords.");
       }
     } catch (err: any) {
       console.error(err);

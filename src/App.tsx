@@ -5,6 +5,14 @@ import MovieDetailModal from "./components/MovieDetailModal";
 import StreamPlayerModal from "./components/StreamPlayerModal";
 import AIRecommender from "./components/AIRecommender";
 import { 
+  fetchCuratedMovies, 
+  searchMovies, 
+  searchMoviesWithPagination,
+  fetchMoviesByCategory, 
+  CATEGORIES, 
+  CategoryOption 
+} from "./services/tmdb";
+import { 
   Film, 
   Search, 
   Compass, 
@@ -17,7 +25,10 @@ import {
   TrendingUp, 
   Heart,
   ChevronRight,
-  Info
+  ChevronLeft,
+  Info,
+  Layers,
+  Grid
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -28,6 +39,12 @@ export default function App() {
   // Database state
   const [curatedMovies, setCuratedMovies] = useState<Movie[]>([]);
   const [curatedLoading, setCuratedLoading] = useState(true);
+
+  // Category & Pagination state
+  const [selectedCategory, setSelectedCategory] = useState<string>("trending");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalResults, setTotalResults] = useState<number>(0);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,21 +65,31 @@ export default function App() {
   // Hero Carousel State
   const [heroIndex, setHeroIndex] = useState(0);
 
-  // Load curated movies on mount
+  // Load movies by category or pagination
   useEffect(() => {
-    fetch("/api/movies/curated")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.movies) {
-          setCuratedMovies(data.movies);
+    if (activeTab !== "browse" || searchResults !== null) return;
+
+    let isMounted = true;
+    setCuratedLoading(true);
+
+    fetchMoviesByCategory(selectedCategory, currentPage)
+      .then((res) => {
+        if (isMounted) {
+          setCuratedMovies(res.movies);
+          setTotalPages(res.totalPages);
+          setTotalResults(res.totalResults);
+          setCuratedLoading(false);
         }
-        setCuratedLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to load curated movies:", err);
-        setCuratedLoading(false);
+        console.error("Failed to load category movies:", err);
+        if (isMounted) setCuratedLoading(false);
       });
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCategory, currentPage, activeTab, searchResults]);
 
   // Load watchlist from LocalStorage on mount
   useEffect(() => {
@@ -106,22 +133,31 @@ export default function App() {
     }
   };
 
-  // Trigger search query with Gemini API with search grounding
-  const handleSearch = async (e?: React.FormEvent) => {
+  // Select Category
+  const handleSelectCategory = (catId: string) => {
+    setSelectedCategory(catId);
+    setCurrentPage(1);
+    setSearchResults(null);
+    setSearchQuery("");
+  };
+
+  // Trigger search query with TMDB API
+  const handleSearch = async (e?: React.FormEvent, page: number = 1) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setSearchLoading(true);
     setSearchError(null);
-    setSearchResults([]);
 
     try {
-      const res = await fetch(`/api/movies/search?q=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      if (data.success && data.movies) {
-        setSearchResults(data.movies);
+      const res = await searchMoviesWithPagination(searchQuery, page);
+      if (res.movies && res.movies.length > 0) {
+        setSearchResults(res.movies);
+        setCurrentPage(res.page);
+        setTotalPages(res.totalPages);
+        setTotalResults(res.totalResults);
       } else {
-        throw new Error(data.error || "Search didn't yield matches.");
+        throw new Error(`No movies found matching "${searchQuery}".`);
       }
     } catch (err: any) {
       console.error("Search error:", err);
@@ -135,9 +171,72 @@ export default function App() {
     setSearchQuery("");
     setSearchResults(null);
     setSearchError(null);
+    setCurrentPage(1);
   };
 
-  const activeHero = curatedMovies[heroIndex];
+  // Handle Page Change
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
+    setCurrentPage(newPage);
+    if (searchResults !== null) {
+      handleSearch(undefined, newPage);
+    }
+    const element = document.getElementById("catalog-section");
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const activeHero = curatedMovies[heroIndex] || curatedMovies[0];
+
+  const currentCategoryObj = CATEGORIES.find((c) => c.id === selectedCategory) || CATEGORIES[0];
+
+  // Helper for rendering pagination buttons
+  const renderPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+
+      if (currentPage <= 3) {
+        end = 4;
+      } else if (currentPage >= totalPages - 2) {
+        start = totalPages - 3;
+      }
+
+      if (start > 2) pages.push("...");
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (end < totalPages - 1) pages.push("...");
+      pages.push(totalPages);
+    }
+
+    return pages.map((p, idx) => {
+      if (typeof p === "string") {
+        return (
+          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-500 font-mono select-none">
+            ...
+          </span>
+        );
+      }
+      const isActive = p === currentPage;
+      return (
+        <button
+          key={p}
+          onClick={() => handlePageChange(p)}
+          className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            isActive
+              ? "bg-imdb text-black shadow-md shadow-amber-500/10"
+              : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5"
+          }`}
+        >
+          {p}
+        </button>
+      );
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#020203] text-zinc-100 flex flex-col font-sans selection:bg-imdb selection:text-black antialiased relative">
@@ -147,8 +246,8 @@ export default function App() {
       {/* Modern High-End Top Navigation Header */}
       <header className="sticky top-0 bg-[#020203]/85 backdrop-blur-md border-b border-white/5 z-30 px-6 sm:px-8 py-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => { setActiveTab("browse"); handleClearSearch(); }}>
-          <div className="bg-imdb text-black font-black px-2.5 py-0.5 rounded text-xl italic tracking-tighter">IMDb</div>
-          <span className="text-xl font-medium tracking-tight text-white uppercase">REIMAGINED</span>
+          <div className="bg-imdb text-black font-black px-2.5 py-0.5 rounded text-xl italic tracking-tighter">BFlix</div>
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5">CINEMA STREAM</span>
         </div>
 
         {/* Tab Selection Navigation */}
@@ -272,20 +371,63 @@ export default function App() {
             )}
 
             {/* MAIN CATALOG SECTION */}
-            <div className="max-w-7xl mx-auto w-full px-6 sm:px-8 py-8 space-y-8 flex-grow">
-              {/* Dynamic Interactive Search Section */}
+            <div id="catalog-section" className="max-w-7xl mx-auto w-full px-6 sm:px-8 py-8 space-y-8 flex-grow">
+              
+              {/* Category & Genre Filter Pills Bar */}
+              {searchResults === null && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-imdb" />
+                      Browse by Category & Genre
+                    </span>
+                    <span className="text-[11px] text-gray-500 font-mono">
+                      {CATEGORIES.length} Categories
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none pt-1">
+                    {CATEGORIES.map((cat) => {
+                      const isSelected = selectedCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => handleSelectCategory(cat.id)}
+                          className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border select-none ${
+                            isSelected
+                              ? "bg-imdb text-black border-imdb shadow-lg shadow-amber-500/10 font-bold scale-[1.02]"
+                              : "bg-[#121214] text-gray-300 hover:text-white border-white/5 hover:border-white/20 hover:bg-white/5"
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Interactive Header & Search Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
                 <div>
-                  <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">
-                    {searchResults !== null ? "Search Database" : "Trending Now"}
-                  </h3>
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">
+                      {searchResults !== null 
+                        ? `Search Results` 
+                        : `${currentCategoryObj.name} Movies`}
+                    </h3>
+                    <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/10 text-amber-400 border border-amber-400/20">
+                      View All
+                    </span>
+                  </div>
                   <p className="text-zinc-500 text-xs font-mono mt-1">
-                    {searchResults !== null ? `Search results for "${searchQuery}"` : "The gold standard of cinema indexation."}
+                    {searchResults !== null 
+                      ? `Found ${totalResults.toLocaleString()} results for "${searchQuery}"` 
+                      : `Page ${currentPage} of ${totalPages} • Total ${totalResults.toLocaleString()} titles available`}
                   </p>
                 </div>
 
                 {/* Instant Input search bar */}
-                <form onSubmit={handleSearch} className="flex gap-2 max-w-md w-full shrink-0">
+                <form onSubmit={(e) => handleSearch(e, 1)} className="flex gap-2 max-w-md w-full shrink-0">
                   <div className="relative flex-grow">
                     <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
@@ -299,7 +441,7 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={searchLoading || !searchQuery.trim()}
-                    className="px-5 bg-imdb hover:bg-imdb-hover disabled:bg-zinc-800 disabled:text-zinc-600 text-black font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center shadow-lg"
+                    className="px-5 bg-imdb hover:bg-imdb-hover disabled:bg-zinc-800 disabled:text-zinc-600 text-black font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center shadow-lg shrink-0"
                   >
                     {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
                   </button>
@@ -308,7 +450,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={handleClearSearch}
-                      className="px-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-full transition-all border border-white/5"
+                      className="px-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-full transition-all border border-white/5 shrink-0"
                     >
                       Reset
                     </button>
@@ -321,36 +463,51 @@ export default function App() {
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
                   <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-red-400">IMDb Catalog Lookup Failed</p>
+                    <p className="text-sm font-bold text-red-400">BFlix Catalog Lookup Failed</p>
                     <p className="text-xs text-gray-400 leading-normal">{searchError}</p>
-                    {searchError.includes("Secrets") && (
-                      <p className="text-[11px] text-imdb/90 font-mono mt-1">
-                        Please open **Settings &gt; Secrets** to verify your GEMINI_API_KEY environment variable.
-                      </p>
-                    )}
                   </div>
                 </div>
               )}
 
               {/* DYNAMIC RESULTS/CURATED GRID */}
-              {searchLoading ? (
+              {(searchLoading || curatedLoading) ? (
                 /* Interactive Catalog Loader */
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
                   <Loader2 className="w-10 h-10 text-imdb animate-spin" />
                   <p className="text-sm text-gray-400 font-mono italic">
-                    Querying global indexers & verifying reviews...
+                    Fetching {currentCategoryObj.name} movies (Page {currentPage})...
                   </p>
                 </div>
               ) : (
-                <motion.div 
-                  layout
-                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
-                >
-                  <AnimatePresence mode="popLayout">
-                    {/* Active search results if queried */}
-                    {searchResults !== null ? (
-                      searchResults.length > 0 ? (
-                        searchResults.map((movie) => (
+                <div className="space-y-10">
+                  <motion.div 
+                    layout
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {/* Active search results if queried */}
+                      {searchResults !== null ? (
+                        searchResults.length > 0 ? (
+                          searchResults.map((movie) => (
+                            <MovieCard
+                              key={movie.id}
+                              movie={movie}
+                              onSelect={setSelectedMovie}
+                              onStream={setStreamMovie}
+                              isWatchlisted={watchlist.some((w) => w.id === movie.id)}
+                              onToggleWatchlist={handleToggleWatchlist}
+                            />
+                          ))
+                        ) : (
+                          <div className="col-span-full py-16 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
+                            <Compass className="w-10 h-10 text-gray-700 mb-2" />
+                            <p className="text-sm font-mono uppercase">No search matches found.</p>
+                            <p className="text-xs max-w-sm">Try searching for simple title fragments or spelling changes.</p>
+                          </div>
+                        )
+                      ) : (
+                        /* Category movies list */
+                        curatedMovies.map((movie) => (
                           <MovieCard
                             key={movie.id}
                             movie={movie}
@@ -360,28 +517,45 @@ export default function App() {
                             onToggleWatchlist={handleToggleWatchlist}
                           />
                         ))
-                      ) : (
-                        <div className="col-span-full py-16 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
-                          <Compass className="w-10 h-10 text-gray-700 mb-2" />
-                          <p className="text-sm font-mono uppercase">No search matches found.</p>
-                          <p className="text-xs max-w-sm">Try searching for simple title fragments or spelling changes.</p>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {/* PAGINATION CONTROLS BAR */}
+                  {totalPages > 1 && (
+                    <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="text-xs text-gray-400 font-mono">
+                        Page <span className="text-white font-bold">{currentPage}</span> of{" "}
+                        <span className="text-white font-bold">{totalPages}</span>{" "}
+                        <span className="text-gray-600">({totalResults.toLocaleString()} total titles)</span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handlePageChange(currentPage - 1)}
+                          disabled={currentPage <= 1}
+                          className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs text-gray-300 font-medium transition-all flex items-center gap-1 border border-white/5 cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>Previous</span>
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          {renderPageNumbers()}
                         </div>
-                      )
-                    ) : (
-                      /* Fallback curated choices list on landing */
-                      curatedMovies.map((movie) => (
-                        <MovieCard
-                          key={movie.id}
-                          movie={movie}
-                          onSelect={setSelectedMovie}
-                          onStream={setStreamMovie}
-                          isWatchlisted={watchlist.some((w) => w.id === movie.id)}
-                          onToggleWatchlist={handleToggleWatchlist}
-                        />
-                      ))
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+
+                        <button
+                          onClick={() => handlePageChange(currentPage + 1)}
+                          disabled={currentPage >= totalPages}
+                          className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs text-gray-300 font-medium transition-all flex items-center gap-1 border border-white/5 cursor-pointer"
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -477,12 +651,12 @@ export default function App() {
       </main>
 
       {/* Footer credits */}
-      <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[10px] text-gray-600 gap-4 mt-12">
-        <span>© 1990-2024 by IMDb.com, Inc. (Reimagined with CineAI)</span>
-        <div className="flex gap-4 uppercase tracking-tighter">
-          <span className="hover:text-gray-400 transition-colors">Help</span>
-          <span>Site Index</span>
-          <span className="hover:text-gray-400 transition-colors">Powered by Gemini 3.5 Flash</span>
+      <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-4 mt-12">
+        <span>© BFlix Cinema. All rights reserved.</span>
+        <div className="flex gap-4 items-center uppercase tracking-wider text-xs">
+          <a href="https://mebon.io" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 text-gray-400 transition-colors flex items-center gap-1.5 font-medium">
+            Powered by <span className="text-imdb font-bold hover:underline">mebon.io</span>
+          </a>
         </div>
       </footer>
 

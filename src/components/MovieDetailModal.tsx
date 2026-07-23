@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Movie, MovieDetail } from "../types";
 import { X, Star, Calendar, Clock, Trophy, Lightbulb, Sparkles, AlertCircle, ExternalLink, Activity, Film, Play } from "lucide-react";
+import PosterFallback from "./PosterFallback";
+import { fetchMovieDetails } from "../services/tmdb";
 import { motion, AnimatePresence } from "motion/react";
 
 interface MovieDetailModalProps {
@@ -38,27 +40,17 @@ export default function MovieDetailModal({ movie, onClose, onStream }: MovieDeta
     setLoading(true);
     setError(null);
 
-    fetch(`/api/movies/${movie.id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Unable to fetch complete details for this movie.");
-        }
-        return res.json();
-      })
-      .then((data) => {
+    fetchMovieDetails(movie.id)
+      .then((detailData) => {
         if (isMounted) {
-          if (data.success && data.movie) {
-            setDetail(data.movie);
-          } else {
-            throw new Error(data.error || "Failed to load movie details.");
-          }
+          setDetail(detailData);
           setLoading(false);
         }
       })
       .catch((err) => {
         if (isMounted) {
           console.error(err);
-          setError(err.message || "An unexpected error occurred.");
+          setError(err.message || "An unexpected error occurred while loading details.");
           setLoading(false);
         }
       });
@@ -145,13 +137,16 @@ export default function MovieDetailModal({ movie, onClose, onStream }: MovieDeta
                   <div className="absolute inset-0 bg-gradient-to-t from-[#020203] via-[#020203]/80 to-transparent" />
                 </div>
 
-                <div className="relative p-6 sm:p-8 z-10 w-full flex flex-col sm:flex-row gap-6 items-end">
-                  {/* Poster Left Offset Overlay */}
-                  <div className="w-32 sm:w-40 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/85 hidden sm:block bg-[#121214]">
+                <div className="relative p-5 sm:p-8 z-10 w-full flex flex-row gap-5 sm:gap-7 items-end">
+                  {/* Poster Thumbnail Overlay */}
+                  <div className="w-24 sm:w-44 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden border border-white/20 shadow-2xl shadow-black/90 bg-[#121214] relative group">
                     <img
-                      src={detail.poster}
+                      src={detail.poster || movie.poster}
                       alt={detail.title}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
                       className="w-full h-full object-cover"
                     />
                   </div>

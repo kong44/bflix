@@ -1,6 +1,6 @@
 {
-  "name": "Movie Explorer",
-  "description": "A full-stack movie discovery website powered by Gemini AI, featuring IMDb-style lists, movie search, smart AI recommendations, and watchlist tracking.",
+  "name": "BFlix",
+  "description": "A streaming and movie discovery platform featuring TMDB real-time catalog, movie search, AI vibe recommendation, stream player, and watchlist tracking.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
