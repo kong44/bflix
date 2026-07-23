@@ -1,0 +1,8 @@
+{
+  "name": "Movie Explorer",
+  "description": "A full-stack movie discovery website powered by Gemini AI, featuring IMDb-style lists, movie search, smart AI recommendations, and watchlist tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
