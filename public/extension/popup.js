@@ -1,4 +1,4 @@
-import { IDMDownloader, parseMasterM3U8, generateFFmpegCommand } from "./m3u8-downloader.js";
+import { parseMasterM3U8, generateFFmpegCommand } from "./m3u8-downloader.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const footerEl = document.getElementById("extension-footer");
@@ -7,12 +7,98 @@ document.addEventListener("DOMContentLoaded", () => {
     footerEl.textContent = `BFLIX Extension v${ver} • Multi-threaded IDM HLS Downloader`;
   }
 
+  // Registry of card getters for background progress updates
+  const registeredCards = [];
+
+  // Helper to update IDM progress panel UI for a card
+  function updateUIForCard(card, idx, info) {
+    if (!info) return;
+    const idmPanel = card.querySelector(`#idm-panel-${idx}`);
+    const dlBtn = card.querySelector(`#dl-btn-${idx}`);
+    const statusMsg = card.querySelector(`#idm-status-msg-${idx}`);
+    const statusPercent = card.querySelector(`#idm-status-percent-${idx}`);
+    const bar = card.querySelector(`#idm-bar-${idx}`);
+    const barText = card.querySelector(`#idm-bar-text-${idx}`);
+    const speedVal = card.querySelector(`#idm-speed-${idx}`);
+    const downloadedVal = card.querySelector(`#idm-downloaded-${idx}`);
+    const etaVal = card.querySelector(`#idm-eta-${idx}`);
+    const elapsedVal = card.querySelector(`#idm-elapsed-${idx}`);
+    const pauseBtn = card.querySelector(`#pause-btn-${idx}`);
+
+    if (idmPanel) idmPanel.style.display = "block";
+
+    if (info.message && statusMsg) statusMsg.textContent = info.message;
+    if (info.percent !== undefined) {
+      if (statusPercent) statusPercent.textContent = `${info.percent}%`;
+      if (bar) bar.style.width = `${info.percent}%`;
+      if (barText) barText.textContent = `${info.percent}%`;
+    }
+    if (info.speed && speedVal) speedVal.textContent = info.speed;
+    if (info.downloadedBytes && downloadedVal) downloadedVal.textContent = info.downloadedBytes;
+    if (info.eta && etaVal) etaVal.textContent = info.eta;
+    if (info.elapsed && elapsedVal) elapsedVal.textContent = info.elapsed;
+
+    if (info.activeThreads) {
+      info.activeThreads.forEach((t) => {
+        const tBox = card.querySelector(`#thread-${idx}-${t.id}`);
+        if (tBox) {
+          if (t.status === "downloading" && t.segmentIndex) {
+            tBox.className = "thread-box active";
+            tBox.textContent = `T${t.id}: #${t.segmentIndex}`;
+          } else if (t.status === "paused") {
+            tBox.className = "thread-box";
+            tBox.textContent = `T${t.id}: Pause`;
+          } else {
+            tBox.className = "thread-box";
+            tBox.textContent = `T${t.id}: Idle`;
+          }
+        }
+      });
+    }
+
+    if (info.status === "paused") {
+      if (pauseBtn) {
+        pauseBtn.textContent = "▶ Resume";
+        pauseBtn.className = "primary pause-btn";
+        pauseBtn.style.display = "inline-block";
+      }
+      if (dlBtn) dlBtn.disabled = true;
+    } else if (info.status === "downloading" || info.status === "parsing" || info.status === "converting") {
+      if (pauseBtn) {
+        pauseBtn.textContent = "⏸ Pause";
+        pauseBtn.className = "secondary pause-btn";
+        pauseBtn.style.display = "inline-block";
+      }
+      if (dlBtn) dlBtn.disabled = true;
+    } else if (info.status === "complete") {
+      if (dlBtn) dlBtn.disabled = false;
+      if (pauseBtn) pauseBtn.style.display = "none";
+    } else if (info.status === "error" || info.status === "cancelled") {
+      if (dlBtn) dlBtn.disabled = false;
+    }
+  }
+
+  // Listen for live background download progress broadcasts
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg && msg.type === "DOWNLOAD_PROGRESS") {
+        registeredCards.forEach(({ card, idx, getTargetUrl }) => {
+          const targetUrl = getTargetUrl();
+          if (targetUrl === msg.targetUrl || targetUrl === msg.streamUrl || msg.targetUrl.includes(targetUrl)) {
+            updateUIForCard(card, idx, msg.info);
+          }
+        });
+      }
+    });
+  }
+
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
     const activeTabId = tabs[0].id;
 
-    chrome.storage.local.get(["capturedStreams"], (result) => {
+    chrome.storage.local.get(["capturedStreams", "activeDownloadsState"], (result) => {
       const allStreams = result.capturedStreams || {};
+      const activeStates = result.activeDownloadsState || {};
       const tabStreams = allStreams[activeTabId] || [];
 
       const container = document.getElementById("streams-container");
@@ -128,6 +214,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         container.appendChild(card);
 
+        const dlBtn = card.querySelector(`#dl-btn-${idx}`);
+        const idmPanel = card.querySelector(`#idm-panel-${idx}`);
+        const pauseBtn = card.querySelector(`#pause-btn-${idx}`);
+        const cancelBtn = card.querySelector(`#cancel-btn-${idx}`);
+
+        const getTargetUrl = () => {
+          if (isM3u8) {
+            const selectEl = card.querySelector(`#quality-select-${idx}`);
+            if (selectEl && selectEl.value) {
+              return selectEl.value;
+            }
+          }
+          return stream.url;
+        };
+
+        registeredCards.push({ card, idx, getTargetUrl });
+
         // Fetch master playlist qualities if M3U8
         if (isM3u8) {
           parseMasterM3U8(stream.url)
@@ -141,6 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
                   opt.textContent = `${q.resolution} (${Math.round(q.bandwidth / 1000)} Kbps)`;
                   selectEl.appendChild(opt);
                 });
+
+                // Check if quality variant already has active download state
+                const currentVal = selectEl.value;
+                if (activeStates[currentVal]) {
+                  updateUIForCard(card, idx, activeStates[currentVal]);
+                }
               }
             })
             .catch(() => {
@@ -148,31 +257,14 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Downloader instance holder
-        let currentDownloader = null;
+        // Restore active state if download was already running in background
+        if (activeStates[stream.url]) {
+          updateUIForCard(card, idx, activeStates[stream.url]);
+        }
 
-        const dlBtn = card.querySelector(`#dl-btn-${idx}`);
-        const idmPanel = card.querySelector(`#idm-panel-${idx}`);
-        const statusMsg = card.querySelector(`#idm-status-msg-${idx}`);
-        const statusPercent = card.querySelector(`#idm-status-percent-${idx}`);
-        const bar = card.querySelector(`#idm-bar-${idx}`);
-        const barText = card.querySelector(`#idm-bar-text-${idx}`);
-        const speedVal = card.querySelector(`#idm-speed-${idx}`);
-        const downloadedVal = card.querySelector(`#idm-downloaded-${idx}`);
-        const etaVal = card.querySelector(`#idm-eta-${idx}`);
-        const elapsedVal = card.querySelector(`#idm-elapsed-${idx}`);
-        const pauseBtn = card.querySelector(`#pause-btn-${idx}`);
-        const cancelBtn = card.querySelector(`#cancel-btn-${idx}`);
-
-        // Download Click Listener
-        dlBtn.addEventListener("click", async () => {
-          let targetUrl = stream.url;
-          if (isM3u8) {
-            const selectEl = card.querySelector(`#quality-select-${idx}`);
-            if (selectEl && selectEl.value) {
-              targetUrl = selectEl.value;
-            }
-          }
+        // Download Click Listener (Delegates to background service worker)
+        dlBtn.addEventListener("click", () => {
+          const targetUrl = getTargetUrl();
 
           idmPanel.style.display = "block";
           dlBtn.disabled = true;
@@ -180,74 +272,35 @@ document.addEventListener("DOMContentLoaded", () => {
           if (!isM3u8) {
             // Direct MP4 Download
             chrome.downloads.download({ url: targetUrl, filename: "BFlix_Movie.mp4", saveAs: true });
-            statusMsg.textContent = "✅ Download started!";
-            bar.style.width = "100%";
-            barText.textContent = "100%";
+            const statusMsg = card.querySelector(`#idm-status-msg-${idx}`);
+            const bar = card.querySelector(`#idm-bar-${idx}`);
+            const barText = card.querySelector(`#idm-bar-text-${idx}`);
+            if (statusMsg) statusMsg.textContent = "✅ Download started!";
+            if (bar) bar.style.width = "100%";
+            if (barText) barText.textContent = "100%";
             return;
           }
 
-          // Initialize IDM Downloader Engine
-          currentDownloader = new IDMDownloader(targetUrl, "BFlix_Movie.mp4", {
-            threadsCount: 8,
-            onProgress: (info) => {
-              if (info.message) statusMsg.textContent = info.message;
-              if (info.percent !== undefined) {
-                statusPercent.textContent = `${info.percent}%`;
-                bar.style.width = `${info.percent}%`;
-                barText.textContent = `${info.percent}%`;
-              }
-              if (info.speed) speedVal.textContent = info.speed;
-              if (info.downloadedBytes) downloadedVal.textContent = info.downloadedBytes;
-              if (info.eta) etaVal.textContent = info.eta;
-              if (info.elapsed) elapsedVal.textContent = info.elapsed;
-
-              // Render active thread boxes
-              if (info.activeThreads) {
-                info.activeThreads.forEach((t) => {
-                  const tBox = card.querySelector(`#thread-${idx}-${t.id}`);
-                  if (tBox) {
-                    if (t.status === "downloading" && t.segmentIndex) {
-                      tBox.className = "thread-box active";
-                      tBox.textContent = `T${t.id}: #${t.segmentIndex}`;
-                    } else if (t.status === "paused") {
-                      tBox.className = "thread-box";
-                      tBox.textContent = `T${t.id}: Pause`;
-                    } else {
-                      tBox.className = "thread-box";
-                      tBox.textContent = `T${t.id}: Idle`;
-                    }
-                  }
-                });
-              }
-
-              if (info.status === "complete") {
-                dlBtn.disabled = false;
-                pauseBtn.style.display = "none";
-              } else if (info.status === "error" || info.status === "cancelled") {
-                dlBtn.disabled = false;
-              }
-            }
+          // Trigger Background Service Worker Download
+          chrome.runtime.sendMessage({
+            type: "START_DOWNLOAD",
+            targetUrl,
+            streamUrl: stream.url,
+            filename: "BFlix_Movie.mp4"
           });
-
-          try {
-            await currentDownloader.start();
-          } catch (err) {
-            statusMsg.textContent = `Error: ${err.message}`;
-            statusMsg.style.color = "#ef4444";
-          } finally {
-            dlBtn.disabled = false;
-          }
         });
 
         // Pause / Resume listener
         pauseBtn.addEventListener("click", () => {
-          if (!currentDownloader) return;
-          if (currentDownloader.isPaused) {
-            currentDownloader.resume();
+          const targetUrl = getTargetUrl();
+          const isCurrentlyPaused = pauseBtn.textContent.includes("Resume");
+
+          if (isCurrentlyPaused) {
+            chrome.runtime.sendMessage({ type: "RESUME_DOWNLOAD", targetUrl, streamUrl: stream.url });
             pauseBtn.textContent = "⏸ Pause";
             pauseBtn.className = "secondary pause-btn";
           } else {
-            currentDownloader.pause();
+            chrome.runtime.sendMessage({ type: "PAUSE_DOWNLOAD", targetUrl, streamUrl: stream.url });
             pauseBtn.textContent = "▶ Resume";
             pauseBtn.className = "primary pause-btn";
           }
@@ -255,9 +308,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Cancel Listener
         cancelBtn.addEventListener("click", () => {
-          if (currentDownloader) {
-            currentDownloader.cancel();
-          }
+          const targetUrl = getTargetUrl();
+          chrome.runtime.sendMessage({ type: "CANCEL_DOWNLOAD", targetUrl, streamUrl: stream.url });
           idmPanel.style.display = "none";
           dlBtn.disabled = false;
         });
@@ -265,13 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // FFmpeg Command listener
         const ffmpegBtn = card.querySelector(`#ffmpeg-btn-${idx}`);
         ffmpegBtn.addEventListener("click", () => {
-          let targetUrl = stream.url;
-          if (isM3u8) {
-            const selectEl = card.querySelector(`#quality-select-${idx}`);
-            if (selectEl && selectEl.value) {
-              targetUrl = selectEl.value;
-            }
-          }
+          const targetUrl = getTargetUrl();
           const cmd = generateFFmpegCommand(targetUrl, "BFlix_Movie");
           navigator.clipboard.writeText(cmd);
           ffmpegBtn.textContent = "Copied!";
@@ -281,13 +327,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Copy Raw URL listener
         const copyBtn = card.querySelector(`#copy-btn-${idx}`);
         copyBtn.addEventListener("click", () => {
-          let targetUrl = stream.url;
-          if (isM3u8) {
-            const selectEl = card.querySelector(`#quality-select-${idx}`);
-            if (selectEl && selectEl.value) {
-              targetUrl = selectEl.value;
-            }
-          }
+          const targetUrl = getTargetUrl();
           navigator.clipboard.writeText(targetUrl);
           copyBtn.textContent = "Copied!";
           setTimeout(() => (copyBtn.textContent = "Copy URL"), 2000);
@@ -296,3 +336,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+

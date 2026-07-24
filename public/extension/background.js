@@ -1,5 +1,110 @@
 // BFLIX Stream Catcher Background Service Worker
 // Listens for network requests containing video stream sources (.m3u8, .mp4, etc.)
+import { IDMDownloader } from "./m3u8-downloader.js";
+
+// Active download instances map (URL -> IDMDownloader)
+const activeDownloads = new Map();
+
+// Helper to save current download state to chrome.storage.local
+function saveDownloadState(targetUrl, streamUrl, info) {
+  chrome.storage.local.get(["activeDownloadsState"], (result) => {
+    const states = result.activeDownloadsState || {};
+    states[targetUrl] = {
+      ...(states[targetUrl] || {}),
+      ...info,
+      targetUrl,
+      streamUrl,
+      lastUpdated: Date.now()
+    };
+    chrome.storage.local.set({ activeDownloadsState: states });
+  });
+}
+
+// Background Download Message Listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || !message.type) return;
+
+  const targetUrl = message.targetUrl || message.url;
+  const streamUrl = message.streamUrl || targetUrl;
+
+  if (message.type === "START_DOWNLOAD") {
+    if (activeDownloads.has(targetUrl)) {
+      sendResponse({ status: "already_running" });
+      return true;
+    }
+
+    const downloader = new IDMDownloader(targetUrl, message.filename || "BFlix_Movie.mp4", {
+      threadsCount: 8,
+      onProgress: (info) => {
+        saveDownloadState(targetUrl, streamUrl, info);
+        // Broadcast to popup if open
+        chrome.runtime.sendMessage({
+          type: "DOWNLOAD_PROGRESS",
+          targetUrl,
+          streamUrl,
+          info
+        }).catch(() => {
+          // Popup closed, expected
+        });
+      }
+    });
+
+    activeDownloads.set(targetUrl, downloader);
+
+    downloader.start()
+      .then(() => {
+        activeDownloads.delete(targetUrl);
+      })
+      .catch((err) => {
+        console.warn("Background download error:", err);
+        activeDownloads.delete(targetUrl);
+      });
+
+    sendResponse({ status: "started" });
+    return true;
+  }
+
+  if (message.type === "PAUSE_DOWNLOAD") {
+    const downloader = activeDownloads.get(targetUrl);
+    if (downloader) {
+      downloader.pause();
+    }
+    sendResponse({ status: "paused" });
+    return true;
+  }
+
+  if (message.type === "RESUME_DOWNLOAD") {
+    const downloader = activeDownloads.get(targetUrl);
+    if (downloader) {
+      downloader.resume();
+    }
+    sendResponse({ status: "resumed" });
+    return true;
+  }
+
+  if (message.type === "CANCEL_DOWNLOAD") {
+    const downloader = activeDownloads.get(targetUrl);
+    if (downloader) {
+      downloader.cancel();
+      activeDownloads.delete(targetUrl);
+    }
+    chrome.storage.local.get(["activeDownloadsState"], (result) => {
+      const states = result.activeDownloadsState || {};
+      delete states[targetUrl];
+      delete states[streamUrl];
+      chrome.storage.local.set({ activeDownloadsState: states });
+    });
+    sendResponse({ status: "cancelled" });
+    return true;
+  }
+
+  if (message.type === "GET_DOWNLOAD_STATES") {
+    chrome.storage.local.get(["activeDownloadsState"], (result) => {
+      sendResponse({ states: result.activeDownloadsState || {} });
+    });
+    return true;
+  }
+});
 
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
