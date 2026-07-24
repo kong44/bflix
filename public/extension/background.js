@@ -65,3 +65,49 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     });
   }
 });
+
+// AD & POPUP REDIRECT BLOCKER
+// Detects and auto-closes unwanted popup windows and redirect ads (e.g. trips.com, booking.com, ad networks)
+const AD_REDIRECT_KEYWORDS = [
+  "trips.com",
+  "booking.com",
+  "agoda.com",
+  "popads",
+  "adsterra",
+  "propellerads",
+  "exoclick",
+  "bet365",
+  "1xbet",
+  "casino",
+  "affiliate",
+  "redirect",
+  "onclick",
+  "doubleclick",
+  "outbrain",
+  "taboola"
+];
+
+chrome.tabs.onCreated.addListener((tab) => {
+  if (tab.openerTabId) {
+    // Check if new tab is opened from an existing video player tab
+    const url = tab.pendingUrl || tab.url || "";
+    if (url) {
+      const isAdDomain = AD_REDIRECT_KEYWORDS.some((kw) => url.toLowerCase().includes(kw));
+      if (isAdDomain) {
+        console.log("🛡️ BFLIX Extension blocked ad redirect popup:", url);
+        chrome.tabs.remove(tab.id);
+      }
+    }
+  }
+});
+
+chrome.webNavigation?.onBeforeNavigate?.addListener((details) => {
+  if (details.frameId === 0 && details.tabId > 0) {
+    const url = details.url || "";
+    const isAdDomain = AD_REDIRECT_KEYWORDS.some((kw) => url.toLowerCase().includes(kw));
+    if (isAdDomain) {
+      console.log("🛡️ BFLIX Extension blocked navigation to ad redirect:", url);
+      chrome.tabs.remove(details.tabId);
+    }
+  }
+});

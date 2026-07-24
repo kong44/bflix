@@ -7,6 +7,7 @@ import {
   Maximize2, 
   ExternalLink, 
   ShieldCheck, 
+  Shield,
   Film, 
   Tv, 
   Radio, 
@@ -108,6 +109,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const selectedProvider = PROVIDERS[selectedProviderIndex];
 
   const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
+  const [blockAdsAndRedirects, setBlockAdsAndRedirects] = useState(true);
   const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -187,6 +189,61 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const activeTmdb = tmdbId || (movie.id.startsWith("tt") ? "" : movie.id);
   const activeImdb = imdbId || (movie.id.startsWith("tt") ? movie.id : "");
   const fallbackId = movie.id;
+
+  // Global anti-redirect & popup blocker directly on website client level
+  useEffect(() => {
+    if (!blockAdsAndRedirects) return;
+
+    // 1. Override window.open to suppress ad popups/popunders created by third party embeds
+    const originalWindowOpen = window.open;
+    window.open = function (url, name, specs) {
+      console.warn("🛡️ BFLIX Anti-Redirect Shield blocked popup window attempt:", url);
+      return null; // Block popup creation
+    };
+
+    // 2. Intercept unrequested link clicks and tab redirects from invisible ad overlays
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      
+      const anchor = target.closest("a");
+      if (anchor) {
+        const href = anchor.getAttribute("href") || "";
+        // Block external ad links opened by invisible player overlays
+        if (
+          href.startsWith("http") &&
+          !href.includes(window.location.hostname) &&
+          (anchor.target === "_blank" || anchor.target === "_top" || anchor.target === "_parent")
+        ) {
+          const isPlayerArea = Boolean(target.closest("#stream-iframe-container"));
+          if (isPlayerArea) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.warn("🛡️ Blocked ad redirect link:", href);
+          }
+        }
+      }
+    };
+
+    // 3. Detect and prevent window blur caused by popunder tabs
+    const handleWindowBlur = () => {
+      // Re-focus main player window if an unrequested popunder tries to steal focus
+      setTimeout(() => {
+        if (document.hasFocus && !document.hasFocus()) {
+          window.focus();
+        }
+      }, 100);
+    };
+
+    document.addEventListener("click", handleGlobalClick, true);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.open = originalWindowOpen;
+      document.removeEventListener("click", handleGlobalClick, true);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [blockAdsAndRedirects]);
 
   const currentEmbedUrl = mediaType === "movie"
     ? selectedProvider.getMovieUrl(activeTmdb, activeImdb, fallbackId)
@@ -307,8 +364,8 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
           {/* Player Server Control Bar */}
           <div className="bg-[#020203] border-b border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
-            {/* Player Engine Switcher (Embed vs Video.js HTML5) */}
-            <div className="flex items-center gap-2">
+            {/* Player Engine Switcher & Anti-Popup Shield Toggle */}
+            <div className="flex flex-wrap items-center gap-2">
               <div className="bg-white/5 border border-white/10 p-1 rounded-xl flex items-center gap-1">
                 <button
                   onClick={() => setPlayerEngine("embed")}
@@ -330,6 +387,21 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   <span>Video.js HTML5 Player</span>
                 </button>
               </div>
+
+              {playerEngine === "embed" && (
+                <button
+                  onClick={() => setBlockAdsAndRedirects(!blockAdsAndRedirects)}
+                  title="Prevents iframe video player from opening popup tabs or redirecting your page"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                    blockAdsAndRedirects
+                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
+                      : "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25"
+                  }`}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>{blockAdsAndRedirects ? "Anti-Redirect Shield: ACTIVE" : "Shield: OFF"}</span>
+                </button>
+              )}
             </div>
 
             {/* Server Selector Dropdown (Shown only when in embed mode) */}
@@ -447,6 +519,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 title={`${movie.title} Stream Player - ${selectedProvider.name}`}
                 className="w-full h-full border-0"
                 allowFullScreen
+                sandbox={blockAdsAndRedirects ? "allow-scripts allow-same-origin allow-forms allow-presentation" : undefined}
                 allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
               />
             )}

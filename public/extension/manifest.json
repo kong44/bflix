@@ -5,6 +5,8 @@
   "description": "Automatically catches .m3u8 and video stream sources from web players and converts/downloads them to MP4 files.",
   "permissions": [
     "webRequest",
+    "webNavigation",
+    "tabs",
     "storage",
     "downloads",
     "activeTab",
