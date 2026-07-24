@@ -116,6 +116,26 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const [episode, setEpisode] = useState(1);
   const [iframeKey, setIframeKey] = useState(0);
 
+  // M3U8 HLS Stream State for VideoJS Engine
+  const DEFAULT_M3U8_PRESETS = [
+    { name: "Mux Test HLS", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+    { name: "Sintel 1080p HLS", url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8" },
+    { name: "Tears of Steel 4K", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8" },
+    { name: "Big Buck Bunny HLS", url: "https://multiplatform-f.akamaihd.net/i/multi/will/bbb/big_buck_bunny_,640x360_400,1024x576_800,1280x720_1000,1920x1080_1500,.mov.csmil/master.m3u8" }
+  ];
+
+  const [m3u8Input, setM3u8Input] = useState<string>("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+  const [activeM3u8Url, setActiveM3u8Url] = useState<string>("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
+  const [videoJsError, setVideoJsError] = useState<string | null>(null);
+
+  const handleLoadM3u8 = (urlToLoad?: string) => {
+    const targetUrl = (urlToLoad || m3u8Input).trim();
+    if (!targetUrl) return;
+    setVideoJsError(null);
+    setActiveM3u8Url(targetUrl);
+    setM3u8Input(targetUrl);
+  };
+
   // Resolved ID state
   const [tmdbId, setTmdbId] = useState<string>(movie.tmdbId || "");
   const [imdbId, setImdbId] = useState<string>(movie.imdbId || "");
@@ -566,6 +586,70 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
             </div>
           </div>
 
+          {/* VideoJS M3U8 Direct HLS Stream Input Bar */}
+          {playerEngine === "videojs" && (
+            <div className="bg-[#121217] border-b border-white/10 p-3 sm:p-4 flex flex-col gap-2.5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex items-center gap-2 text-xs font-mono font-bold text-imdb shrink-0">
+                  <Radio className="w-4 h-4 animate-pulse" />
+                  <span>M3U8 / HLS Stream URL:</span>
+                </div>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={m3u8Input}
+                    onChange={(e) => setM3u8Input(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLoadM3u8()}
+                    placeholder="Paste .m3u8 or .m8u HLS stream link (e.g. https://domain.com/stream/index.m3u8)..."
+                    className="w-full bg-[#0a0a0d] text-white border border-white/20 focus:border-amber-400 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none pr-16"
+                  />
+                  {m3u8Input && (
+                    <button
+                      onClick={() => setM3u8Input("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs px-2 py-0.5 rounded font-mono"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleLoadM3u8()}
+                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold font-mono text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Play className="w-3.5 h-3.5 fill-black" />
+                  <span>Play HLS Stream</span>
+                </button>
+              </div>
+
+              {/* Sample M3U8 Presets for Quick Testing */}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className="text-gray-400 font-bold shrink-0">Sample HLS Streams:</span>
+                {DEFAULT_M3U8_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => handleLoadM3u8(preset.url)}
+                    className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                      activeM3u8Url === preset.url
+                        ? "bg-amber-400/20 border-amber-400 text-amber-300 font-bold"
+                        : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+
+              {videoJsError && (
+                <div className="bg-red-500/15 border border-red-500/30 p-2.5 rounded-xl text-red-300 text-xs font-mono flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                  <span>
+                    Failed to play stream: {videoJsError}. Cross-Origin Resource Sharing (CORS) or protected headers may be active on this stream. Try switching to an Embed HD Server above!
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Video Player Frame Container */}
           <div
             id="stream-iframe-container"
@@ -573,6 +657,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
           >
             {playerEngine === "videojs" ? (
               <VideoJSPlayer
+                key={activeM3u8Url}
                 options={{
                   autoplay: true,
                   controls: true,
@@ -581,10 +666,16 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   playbackRates: [0.5, 1, 1.25, 1.5, 2],
                   sources: [
                     {
-                      src: "https://vjs.zencdn.net/v/oceans.mp4",
-                      type: "video/mp4"
+                      src: activeM3u8Url,
+                      type: activeM3u8Url.includes(".mp4") && !activeM3u8Url.includes(".m3u8")
+                        ? "video/mp4"
+                        : "application/x-mpegURL"
                     }
                   ]
+                }}
+                onError={(err) => {
+                  const msg = err?.message || "CORS restriction or invalid M3U8 URL";
+                  setVideoJsError(msg);
                 }}
               />
             ) : (
