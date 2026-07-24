@@ -235,13 +235,23 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
       }, 100);
     };
 
+    // 4. Prevent top-level page unload / redirects initiated by embed scripts
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Warn user before allowing external embed script from navigating main tab away
+      e.preventDefault();
+      e.returnValue = "Stay on BFLIX to keep watching movie?";
+      return "Stay on BFLIX to keep watching movie?";
+    };
+
     document.addEventListener("click", handleGlobalClick, true);
     window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.open = originalWindowOpen;
       document.removeEventListener("click", handleGlobalClick, true);
       window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [blockAdsAndRedirects]);
 
@@ -519,7 +529,6 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 title={`${movie.title} Stream Player - ${selectedProvider.name}`}
                 className="w-full h-full border-0"
                 allowFullScreen
-                sandbox={blockAdsAndRedirects ? "allow-scripts allow-same-origin allow-forms allow-presentation" : undefined}
                 allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
               />
             )}
