@@ -99,21 +99,48 @@ const AD_TRACKER_DOMAINS = [
   "onclick"
 ];
 
-// Block outgoing network requests to known ad/tracker domains
-if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
-  chrome.webRequest.onBeforeRequest.addListener(
-    (details) => {
-      const url = details.url.toLowerCase();
-      const isTrackerOrAd = AD_TRACKER_DOMAINS.some((domain) => url.includes(domain));
-      if (isTrackerOrAd) {
-        console.log("🛡️ Extension blocked ad/tracker request:", details.url);
-        return { cancel: true };
+// Register Manifest V3 declarativeNetRequest dynamic rules for blocking ad & tracker network requests
+if (typeof chrome !== "undefined" && chrome.declarativeNetRequest) {
+  const rules = AD_TRACKER_DOMAINS.map((domain, index) => ({
+    id: index + 1,
+    priority: 1,
+    action: { type: "block" },
+    condition: {
+      urlFilter: `*${domain}*`,
+      resourceTypes: [
+        "main_frame",
+        "sub_frame",
+        "stylesheet",
+        "script",
+        "image",
+        "font",
+        "object",
+        "xmlhttprequest",
+        "ping",
+        "csp_report",
+        "media",
+        "websocket",
+        "other"
+      ]
+    }
+  }));
+
+  chrome.declarativeNetRequest.getDynamicRules((existingRules) => {
+    const removeRuleIds = existingRules.map((rule) => rule.id);
+    chrome.declarativeNetRequest.updateDynamicRules(
+      {
+        removeRuleIds: removeRuleIds,
+        addRules: rules
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.warn("DeclarativeNetRequest rule registration:", chrome.runtime.lastError.message);
+        } else {
+          console.log(`🛡️ BFLIX Extension active with ${rules.length} Manifest V3 ad-blocking rules.`);
+        }
       }
-      return { cancel: false };
-    },
-    { urls: ["<all_urls>"] },
-    ["blocking"]
-  );
+    );
+  });
 }
 
 chrome.tabs.onCreated.addListener((tab) => {

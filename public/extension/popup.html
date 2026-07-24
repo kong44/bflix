@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>BFLIX Stream Catcher & MP4 Downloader</title>
+  <title>BFLIX IDM Stream Downloader</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 380px;
-      background: #0d0d11;
+      width: 440px;
+      background: #0f0f13;
       color: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 13px;
@@ -17,7 +17,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
       padding-bottom: 12px;
       margin-bottom: 14px;
     }
@@ -29,32 +29,40 @@
       font-size: 15px;
       color: #f5c518;
     }
-    .badge {
-      background: rgba(245, 197, 24, 0.15);
-      color: #f5c518;
-      border: 1px solid rgba(245, 197, 24, 0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
+    .brand-badge {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 3px 8px;
+      border-radius: 6px;
       font-size: 10px;
+      font-weight: bold;
       font-family: monospace;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .empty-state {
       text-align: center;
-      padding: 28px 12px;
+      padding: 32px 16px;
       color: #8e8e93;
+      background: #15151a;
+      border: 1px dashed rgba(255,255,255,0.1);
+      border-radius: 12px;
     }
     .stream-card {
-      background: #17171d;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
+      background: #181820;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     }
     .stream-type {
       font-size: 11px;
       font-weight: bold;
       color: #10b981;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -64,12 +72,41 @@
       font-size: 10px;
       color: #a1a1aa;
       word-break: break-all;
-      background: rgba(0,0,0,0.3);
-      padding: 6px;
+      background: rgba(0,0,0,0.4);
+      padding: 8px;
       border-radius: 6px;
-      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+      margin-bottom: 12px;
       max-height: 48px;
       overflow-y: auto;
+    }
+    .quality-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      background: rgba(255,255,255,0.03);
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .quality-label {
+      font-size: 11px;
+      color: #d1d5db;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    select.quality-select {
+      flex: 1;
+      background: #272730;
+      color: #fbbf24;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: bold;
+      outline: none;
+      cursor: pointer;
     }
     .btn-group {
       display: flex;
@@ -77,7 +114,7 @@
     }
     button {
       flex: 1;
-      background: #27272a;
+      background: #272732;
       color: #fff;
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 8px;
@@ -86,58 +123,176 @@
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
     }
     button:hover {
-      background: #3f3f46;
+      background: #3f3f4e;
     }
     button.primary {
-      background: #f5c518;
+      background: linear-gradient(135deg, #f5c518, #e0a800);
       color: #000;
       border: none;
+      box-shadow: 0 2px 8px rgba(245, 197, 24, 0.3);
     }
     button.primary:hover {
-      background: #e0b010;
+      background: linear-gradient(135deg, #ffd700, #f5c518);
     }
-    .progress-box {
-      margin-top: 8px;
-      background: rgba(0,0,0,0.4);
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 11px;
+    button.secondary {
+      background: #3f3f46;
+      color: #e4e4e7;
+    }
+    button.danger {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+    }
+    button.danger:hover {
+      background: #dc2626;
+    }
+
+    /* IDM Downloader Dashboard Panel */
+    .idm-panel {
+      margin-top: 12px;
+      background: #0f0f15;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 10px;
+      padding: 12px;
       display: none;
     }
-    .progress-bar {
-      height: 4px;
-      background: #f5c518;
-      width: 0%;
-      border-radius: 2px;
-      margin-top: 4px;
-      transition: width 0.3s;
+    .idm-header-status {
+      font-size: 11px;
+      font-weight: bold;
+      color: #34d399;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
+    .idm-progress-container {
+      position: relative;
+      height: 20px;
+      background: #1f1f2e;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 10px;
+    }
+    .idm-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #059669);
+      width: 0%;
+      transition: width 0.2s linear;
+    }
+    .idm-progress-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      font-family: monospace;
+    }
+    .idm-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      background: rgba(0,0,0,0.3);
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    .idm-stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .idm-stat-label {
+      color: #9ca3af;
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+    .idm-stat-val {
+      color: #f3f4f6;
+      font-weight: bold;
+      font-size: 11px;
+    }
+    .idm-stat-val.speed {
+      color: #34d399;
+    }
+
+    /* IDM 8-Thread Connections Indicator */
+    .threads-title {
+      font-size: 10px;
+      color: #9ca3af;
+      margin-bottom: 4px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+    }
+    .threads-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .thread-box {
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 3px 4px;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 9px;
+      font-family: monospace;
+      color: #6b7280;
+    }
+    .thread-box.active {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-weight: bold;
+    }
+
+    .idm-controls {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
     .footer {
       font-size: 10px;
       color: #71717a;
       text-align: center;
-      margin-top: 12px;
+      margin-top: 14px;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="brand">
-      <span>🎬 BFLIX Stream Catcher</span>
+      <img src="icon.png" alt="BFLIX Icon" style="width: 20px; height: 20px; border-radius: 4px; object-fit: cover;" />
+      <span>BFLIX Stream Catcher</span>
     </div>
-    <span class="badge">M3U8 ➔ MP4</span>
+    <div class="brand-badge">
+      <span>⚡ IDM 8-THREAD ENGINE</span>
+    </div>
   </div>
 
   <div id="streams-container">
     <div class="empty-state">
-      <p>🔍 Play a movie stream in the player to catch video URLs (.m3u8 / .mp4).</p>
+      <p>🔍 Play a video stream in the web player to capture .m3u8 / .mp4 URLs.</p>
+      <p style="margin-top: 6px; font-size: 11px; color: #a1a1aa;">Automatic high-speed IDM multi-segment conversion engine active.</p>
     </div>
   </div>
 
   <div class="footer">
-    BFLIX Extension • Converts HLS .m3u8 stream segments to MP4
+    BFLIX Extension • Multi-threaded IDM HLS Downloader
   </div>
 
   <script type="module" src="popup.js"></script>
