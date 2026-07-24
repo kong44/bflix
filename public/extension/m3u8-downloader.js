@@ -9,6 +9,16 @@ export function resolveUrl(line, baseUrl) {
   line = (line || "").trim();
   if (!line) return "";
 
+  // Protocol-relative URL (e.g. //i-cdn-0.kriss424did.com/stream2/...)
+  if (line.startsWith("//")) {
+    try {
+      const baseObj = new URL(baseUrl);
+      return baseObj.protocol + line;
+    } catch (e) {
+      return "https:" + line;
+    }
+  }
+
   // Already absolute URL
   if (line.startsWith("http://") || line.startsWith("https://")) {
     return line;
@@ -17,7 +27,7 @@ export function resolveUrl(line, baseUrl) {
   try {
     const baseObj = new URL(baseUrl);
 
-    // Root-relative URL
+    // Root-relative URL (starts with /)
     if (line.startsWith("/")) {
       const resolved = new URL(line, baseObj.origin);
       if (baseObj.search && !resolved.search) {
@@ -26,20 +36,25 @@ export function resolveUrl(line, baseUrl) {
       return resolved.href;
     }
 
-    // Check if line matches the exact end of baseObj.pathname (e.g. line = "1080/index.m3u8" or "index.m3u8")
+    // Check if line matches exact end of baseObj.pathname
     if (baseObj.pathname.endsWith("/" + line) || baseObj.pathname.endsWith(line)) {
       return baseUrl;
     }
 
     const pathSegments = baseObj.pathname.split("/").filter(Boolean);
-    const currentFolder = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : "";
+    const lineParts = line.split("/").filter(Boolean);
+    const firstLineSegment = lineParts[0];
 
-    const lineFirstSegment = line.split("/")[0];
+    // Check if the first segment of `line` already exists as a parent directory in `pathSegments`
+    // (excluding the last segment which is the playlist filename itself like index.m3u8)
+    const matchIdx = pathSegments.findIndex(
+      (seg, idx) => seg === firstLineSegment && idx < pathSegments.length - 1
+    );
 
-    // Detect duplicate directory structure (e.g. base = .../1080/index.m3u8 and line = 1080/index.m3u8)
-    if (currentFolder && lineFirstSegment === currentFolder) {
-      const parentSegments = pathSegments.slice(0, -2);
-      const parentPath = "/" + parentSegments.join("/") + (parentSegments.length ? "/" : "");
+    if (matchIdx !== -1) {
+      // Avoid duplicate path accumulation! Resolve `line` relative to parent folder prefix before matchIdx
+      const parentDirSegments = pathSegments.slice(0, matchIdx);
+      const parentPath = "/" + parentDirSegments.join("/") + (parentDirSegments.length ? "/" : "");
       const resolved = new URL(line, baseObj.origin + parentPath);
       if (baseObj.search && !resolved.search) {
         resolved.search = baseObj.search;
@@ -142,13 +157,21 @@ export async function parseM3U8Segments(m3u8Url, visitedUrls = new Set()) {
   const lines = text.split("\n");
   const segments = [];
 
-  // Check if master playlist
+  // Check if master playlist containing variant quality streams
   if (text.includes("#EXT-X-STREAM-INF")) {
     const masterInfo = parseMasterM3U8WithText(text, m3u8Url);
     if (masterInfo.qualities.length > 0) {
-      const topQualityUrl = masterInfo.qualities[0].url;
-      if (topQualityUrl && !visitedUrls.has(topQualityUrl) && topQualityUrl !== m3u8Url) {
-        return parseM3U8Segments(topQualityUrl, visitedUrls);
+      for (const q of masterInfo.qualities) {
+        if (q.url && !visitedUrls.has(q.url) && q.url !== m3u8Url) {
+          try {
+            const segs = await parseM3U8Segments(q.url, visitedUrls);
+            if (segs && segs.length > 0) {
+              return segs;
+            }
+          } catch (err) {
+            console.warn(`Quality stream ${q.resolution} (${q.url}) failed, trying fallback:`, err);
+          }
+        }
       }
     }
   }
