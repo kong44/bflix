@@ -110,6 +110,8 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
   const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
   const [blockAdsAndRedirects, setBlockAdsAndRedirects] = useState(true);
+  const [showAdShieldOverlay, setShowAdShieldOverlay] = useState(true);
+  const [blockedCount, setBlockedCount] = useState(0);
   const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -118,6 +120,11 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   // Resolved ID state
   const [tmdbId, setTmdbId] = useState<string>(movie.tmdbId || "");
   const [imdbId, setImdbId] = useState<string>(movie.imdbId || "");
+
+  // Reset ad click absorber overlay on provider or media change
+  useEffect(() => {
+    setShowAdShieldOverlay(true);
+  }, [selectedProviderIndex, season, episode, mediaType, iframeKey]);
 
   // Resolve external IDs if missing
   useEffect(() => {
@@ -207,8 +214,33 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
     const originalWindowOpen = window.open;
     window.open = function (url, name, specs) {
       console.warn("🛡️ BFLIX Anti-Redirect Shield blocked popup window attempt:", url);
+      setBlockedCount((prev) => prev + 1);
       return null; // Block popup creation
     };
+
+    // 2. Navigation API interceptor (Chrome, Edge, Brave, Opera, Arc)
+    // Intercepts top-level navigation attempts made by third party embed scripts to external ad domains
+    const handleNavigation = (e: any) => {
+      try {
+        const destUrl = e.destination?.url || "";
+        if (
+          destUrl &&
+          !destUrl.includes(window.location.host) &&
+          !destUrl.startsWith("blob:") &&
+          !destUrl.startsWith("data:")
+        ) {
+          e.preventDefault();
+          console.warn("🛡️ BFLIX Navigation Shield blocked top-level page redirect to:", destUrl);
+          setBlockedCount((prev) => prev + 1);
+        }
+      } catch (err) {
+        console.error("Navigation shield error:", err);
+      }
+    };
+
+    if (typeof window !== "undefined" && "navigation" in window && (window as any).navigation) {
+      (window as any).navigation.addEventListener("navigate", handleNavigation);
+    }
 
     // 2. Intercept fetch API requests to block ad trackers
     const originalFetch = window.fetch;
@@ -285,6 +317,9 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
       window.open = originalWindowOpen;
       window.fetch = originalFetch;
       XMLHttpRequest.prototype.open = originalXhrOpen;
+      if (typeof window !== "undefined" && "navigation" in window && (window as any).navigation) {
+        (window as any).navigation.removeEventListener("navigate", handleNavigation);
+      }
       document.removeEventListener("click", handleGlobalClick, true);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -542,6 +577,32 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
             id="stream-iframe-container"
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
+            {playerEngine === "embed" && blockAdsAndRedirects && showAdShieldOverlay && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowAdShieldOverlay(false);
+                  setBlockedCount((prev) => prev + 1);
+                }}
+                className="absolute inset-0 z-20 bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center cursor-pointer group transition-all p-4 text-center select-none"
+              >
+                <div className="bg-[#121218]/95 border border-emerald-500/40 px-6 py-5 rounded-2xl shadow-2xl flex flex-col items-center gap-2.5 max-w-sm group-hover:scale-105 transition-transform border-dashed">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+                    <ShieldCheck className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <h4 className="text-white font-bold text-sm">Anti-Redirect Click Shield</h4>
+                  <p className="text-xs text-gray-300">
+                    Click here to purge invisible ad overlays before playing video without redirects.
+                  </p>
+                  <span className="text-[11px] font-mono text-emerald-300 font-bold bg-emerald-500/20 px-4 py-1.5 rounded-xl border border-emerald-500/40 mt-1 flex items-center gap-1.5 shadow-lg">
+                    <Play className="w-3 h-3 fill-emerald-300" />
+                    <span>Click to Unlock Clean Player</span>
+                  </span>
+                </div>
+              </div>
+            )}
+
             {playerEngine === "videojs" ? (
               <VideoJSPlayer
                 options={{
@@ -572,9 +633,16 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
           {/* Footer Notice & Troubleshooting Tips */}
           <div className="bg-[#121215] border-t border-white/10 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>Connected to {selectedProvider.name} server</span>
+            <div className="flex items-center gap-3 text-emerald-400">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <span>Connected to {selectedProvider.name}</span>
+              </div>
+              {blockedCount > 0 && (
+                <span className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-bold text-[10px]">
+                  Blocked {blockedCount} Redirects / Ads
+                </span>
+              )}
             </div>
             
             <div className="flex items-center gap-2 text-amber-400/90 text-center sm:text-right">
