@@ -194,6 +194,15 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   useEffect(() => {
     if (!blockAdsAndRedirects) return;
 
+    // Known ad & tracker keyword domains
+    const TRACKER_PATTERNS = [
+      "doubleclick", "googlesyndication", "google-analytics", "adservice",
+      "popads", "adsterra", "propellerads", "exoclick", "juicyads", "popcash",
+      "admaven", "monetag", "hilltopads", "outbrain", "taboola", "mgid",
+      "scorecardresearch", "adnxs", "criteo", "yandex.ru/metrika", "trips.com",
+      "booking.com", "agoda.com", "bet365", "1xbet", "casino"
+    ];
+
     // 1. Override window.open to suppress ad popups/popunders created by third party embeds
     const originalWindowOpen = window.open;
     window.open = function (url, name, specs) {
@@ -201,7 +210,32 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
       return null; // Block popup creation
     };
 
-    // 2. Intercept unrequested link clicks and tab redirects from invisible ad overlays
+    // 2. Intercept fetch API requests to block ad trackers
+    const originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const urlStr = typeof input === "string" ? input : (input instanceof Request ? input.url : String(input));
+      const isTracker = TRACKER_PATTERNS.some((pattern) => urlStr.toLowerCase().includes(pattern));
+      if (isTracker) {
+        console.warn("🛡️ BFLIX Anti-Tracker blocked fetch request:", urlStr);
+        return Promise.reject(new TypeError("Blocked by BFLIX Anti-Tracker Shield"));
+      }
+      return originalFetch.apply(this, arguments as any);
+    };
+
+    // 3. Intercept XMLHttpRequest to block ad trackers
+    const originalXhrOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method: string, url: string | URL) {
+      const urlStr = String(url).toLowerCase();
+      const isTracker = TRACKER_PATTERNS.some((pattern) => urlStr.includes(pattern));
+      if (isTracker) {
+        console.warn("🛡️ BFLIX Anti-Tracker blocked XHR request:", urlStr);
+        // Point to empty dummy URL
+        return originalXhrOpen.call(this, method, "about:blank");
+      }
+      return originalXhrOpen.apply(this, arguments as any);
+    };
+
+    // 4. Intercept unrequested link clicks and tab redirects from invisible ad overlays
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
@@ -225,7 +259,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
       }
     };
 
-    // 3. Detect and prevent window blur caused by popunder tabs
+    // 5. Detect and prevent window blur caused by popunder tabs
     const handleWindowBlur = () => {
       // Re-focus main player window if an unrequested popunder tries to steal focus
       setTimeout(() => {
@@ -235,7 +269,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
       }, 100);
     };
 
-    // 4. Prevent top-level page unload / redirects initiated by embed scripts
+    // 6. Prevent top-level page unload / redirects initiated by embed scripts
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       // Warn user before allowing external embed script from navigating main tab away
       e.preventDefault();
@@ -249,6 +283,8 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
     return () => {
       window.open = originalWindowOpen;
+      window.fetch = originalFetch;
+      XMLHttpRequest.prototype.open = originalXhrOpen;
       document.removeEventListener("click", handleGlobalClick, true);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);

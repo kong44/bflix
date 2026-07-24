@@ -66,9 +66,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 });
 
-// AD & POPUP REDIRECT BLOCKER
-// Detects and auto-closes unwanted popup windows and redirect ads (e.g. trips.com, booking.com, ad networks)
-const AD_REDIRECT_KEYWORDS = [
+// AD & TRACKER & POPUP REDIRECT BLOCKER
+// Blocks known ad networks, trackers, popups, and redirect domains
+const AD_TRACKER_DOMAINS = [
   "trips.com",
   "booking.com",
   "agoda.com",
@@ -76,23 +76,52 @@ const AD_REDIRECT_KEYWORDS = [
   "adsterra",
   "propellerads",
   "exoclick",
+  "juicyads",
+  "popcash",
+  "admaven",
+  "monetag",
+  "hilltopads",
+  "doubleclick.net",
+  "googlesyndication.com",
+  "google-analytics.com",
+  "adservice.google.com",
+  "outbrain.com",
+  "taboola.com",
+  "mgid.com",
+  "yandex.ru/metrika",
+  "scorecardresearch.com",
+  "adnxs.com",
+  "criteo.com",
   "bet365",
   "1xbet",
   "casino",
   "affiliate",
-  "redirect",
-  "onclick",
-  "doubleclick",
-  "outbrain",
-  "taboola"
+  "onclick"
 ];
+
+// Block outgoing network requests to known ad/tracker domains
+if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
+  chrome.webRequest.onBeforeRequest.addListener(
+    (details) => {
+      const url = details.url.toLowerCase();
+      const isTrackerOrAd = AD_TRACKER_DOMAINS.some((domain) => url.includes(domain));
+      if (isTrackerOrAd) {
+        console.log("🛡️ Extension blocked ad/tracker request:", details.url);
+        return { cancel: true };
+      }
+      return { cancel: false };
+    },
+    { urls: ["<all_urls>"] },
+    ["blocking"]
+  );
+}
 
 chrome.tabs.onCreated.addListener((tab) => {
   if (tab.openerTabId) {
     // Check if new tab is opened from an existing video player tab
-    const url = tab.pendingUrl || tab.url || "";
+    const url = (tab.pendingUrl || tab.url || "").toLowerCase();
     if (url) {
-      const isAdDomain = AD_REDIRECT_KEYWORDS.some((kw) => url.toLowerCase().includes(kw));
+      const isAdDomain = AD_TRACKER_DOMAINS.some((kw) => url.includes(kw));
       if (isAdDomain) {
         console.log("🛡️ BFLIX Extension blocked ad redirect popup:", url);
         chrome.tabs.remove(tab.id);
@@ -103,8 +132,8 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 chrome.webNavigation?.onBeforeNavigate?.addListener((details) => {
   if (details.frameId === 0 && details.tabId > 0) {
-    const url = details.url || "";
-    const isAdDomain = AD_REDIRECT_KEYWORDS.some((kw) => url.toLowerCase().includes(kw));
+    const url = (details.url || "").toLowerCase();
+    const isAdDomain = AD_TRACKER_DOMAINS.some((kw) => url.includes(kw));
     if (isAdDomain) {
       console.log("🛡️ BFLIX Extension blocked navigation to ad redirect:", url);
       chrome.tabs.remove(details.tabId);
