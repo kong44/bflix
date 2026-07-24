@@ -1,21 +1,71 @@
 // IDM-Style High-Speed Multi-Threaded M3U8 HLS Downloader Engine
 
-export async function parseMasterM3U8(m3u8Url) {
-  const response = await fetch(m3u8Url);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} - Could not fetch M3U8 playlist`);
-  }
-  const text = await response.text();
-  const lines = text.split("\n");
+/**
+ * Smart URL Resolver for HLS Playlist and Segment URLs
+ * Prevents path duplication (e.g. /1080/1080/index.m3u8 -> 404)
+ * and preserves query strings / token parameters from CDN base URLs.
+ */
+export function resolveUrl(line, baseUrl) {
+  line = (line || "").trim();
+  if (!line) return "";
 
+  // Already absolute URL
+  if (line.startsWith("http://") || line.startsWith("https://")) {
+    return line;
+  }
+
+  try {
+    const baseObj = new URL(baseUrl);
+
+    // Root-relative URL
+    if (line.startsWith("/")) {
+      const resolved = new URL(line, baseObj.origin);
+      if (baseObj.search && !resolved.search) {
+        resolved.search = baseObj.search;
+      }
+      return resolved.href;
+    }
+
+    // Check if line matches the exact end of baseObj.pathname (e.g. line = "1080/index.m3u8" or "index.m3u8")
+    if (baseObj.pathname.endsWith("/" + line) || baseObj.pathname.endsWith(line)) {
+      return baseUrl;
+    }
+
+    const pathSegments = baseObj.pathname.split("/").filter(Boolean);
+    const currentFolder = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : "";
+
+    const lineFirstSegment = line.split("/")[0];
+
+    // Detect duplicate directory structure (e.g. base = .../1080/index.m3u8 and line = 1080/index.m3u8)
+    if (currentFolder && lineFirstSegment === currentFolder) {
+      const parentSegments = pathSegments.slice(0, -2);
+      const parentPath = "/" + parentSegments.join("/") + (parentSegments.length ? "/" : "");
+      const resolved = new URL(line, baseObj.origin + parentPath);
+      if (baseObj.search && !resolved.search) {
+        resolved.search = baseObj.search;
+      }
+      return resolved.href;
+    }
+
+    // Standard relative URL resolution
+    const resolved = new URL(line, baseUrl);
+    if (baseObj.search && !resolved.search) {
+      resolved.search = baseObj.search;
+    }
+    return resolved.href;
+  } catch (e) {
+    return line;
+  }
+}
+
+export function parseMasterM3U8WithText(text, m3u8Url) {
+  const lines = text.split("\n");
   const qualities = [];
 
-  // Check if master playlist containing variant streams
   if (text.includes("#EXT-X-STREAM-INF")) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (line.startsWith("#EXT-X-STREAM-INF")) {
-        // Extract RESOLUTION and BANDWIDTH metadata
         let resolution = "Auto / Default";
         let bandwidth = 0;
 
@@ -25,13 +75,12 @@ export async function parseMasterM3U8(m3u8Url) {
         const bwMatch = line.match(/BANDWIDTH=(\d+)/i);
         if (bwMatch) bandwidth = parseInt(bwMatch[1], 10);
 
-        // Find next non-comment line for playlist URL
         let j = i + 1;
         while (j < lines.length && (lines[j].trim().startsWith("#") || !lines[j].trim())) {
           j++;
         }
         if (lines[j]) {
-          const variantUrl = new URL(lines[j].trim(), m3u8Url).href;
+          const variantUrl = resolveUrl(lines[j].trim(), m3u8Url);
           qualities.push({
             resolution,
             bandwidth,
@@ -45,7 +94,6 @@ export async function parseMasterM3U8(m3u8Url) {
     }
   }
 
-  // Sort qualities by resolution/bandwidth descending
   qualities.sort((a, b) => b.bandwidth - a.bandwidth);
 
   return {
@@ -55,31 +103,62 @@ export async function parseMasterM3U8(m3u8Url) {
   };
 }
 
-export async function parseM3U8Segments(m3u8Url) {
-  const response = await fetch(m3u8Url);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} - Could not fetch M3U8 segment playlist`);
+export async function parseMasterM3U8(m3u8Url) {
+  let response;
+  try {
+    response = await fetch(m3u8Url, { mode: "cors" });
+    if (!response.ok) response = await fetch(m3u8Url);
+  } catch (e) {
+    response = await fetch(m3u8Url);
   }
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} - Could not fetch M3U8 playlist`);
+  }
+
+  const text = await response.text();
+  return parseMasterM3U8WithText(text, m3u8Url);
+}
+
+export async function parseM3U8Segments(m3u8Url, visitedUrls = new Set()) {
+  if (visitedUrls.has(m3u8Url)) {
+    throw new Error("Circular reference in M3U8 playlist structure.");
+  }
+  visitedUrls.add(m3u8Url);
+
+  let response;
+  try {
+    response = await fetch(m3u8Url, { mode: "cors" });
+    if (!response.ok) response = await fetch(m3u8Url);
+  } catch (e) {
+    response = await fetch(m3u8Url);
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} - Could not fetch M3U8 segment playlist (${m3u8Url})`);
+  }
+
   const text = await response.text();
   const lines = text.split("\n");
   const segments = [];
 
-  // If master playlist was passed directly, resolve highest quality variant
+  // Check if master playlist
   if (text.includes("#EXT-X-STREAM-INF")) {
-    const masterInfo = await parseMasterM3U8(m3u8Url);
+    const masterInfo = parseMasterM3U8WithText(text, m3u8Url);
     if (masterInfo.qualities.length > 0) {
-      return parseM3U8Segments(masterInfo.qualities[0].url);
+      const topQualityUrl = masterInfo.qualities[0].url;
+      if (topQualityUrl && !visitedUrls.has(topQualityUrl) && topQualityUrl !== m3u8Url) {
+        return parseM3U8Segments(topQualityUrl, visitedUrls);
+      }
     }
   }
 
   for (let line of lines) {
     line = line.trim();
     if (line && !line.startsWith("#")) {
-      try {
-        const segmentUrl = new URL(line, m3u8Url).href;
-        segments.push(segmentUrl);
-      } catch (e) {
-        segments.push(line);
+      const segUrl = resolveUrl(line, m3u8Url);
+      if (segUrl) {
+        segments.push(segUrl);
       }
     }
   }
@@ -209,7 +288,7 @@ export class IDMDownloader {
           // Fetch segment with retry logic
           let arrayBuffer = null;
           let retries = 0;
-          const maxRetries = 5;
+          const maxRetries = 4;
 
           while (retries < maxRetries && !this.isCancelled) {
             try {
@@ -222,10 +301,18 @@ export class IDMDownloader {
                 continue;
               }
 
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              if (!res.ok && res.status !== 404) {
+                throw new Error(`HTTP ${res.status}`);
+              }
 
-              arrayBuffer = await res.arrayBuffer();
-              break;
+              if (res.ok) {
+                arrayBuffer = await res.arrayBuffer();
+                break;
+              } else if (res.status === 404) {
+                // If single segment 404s after retry, log and break to avoid blocking entire download
+                retries++;
+                await delay(500 * retries);
+              }
             } catch (err) {
               retries++;
               await delay(1000 * retries);
@@ -233,14 +320,17 @@ export class IDMDownloader {
           }
 
           if (!arrayBuffer && !this.isCancelled) {
-            throw new Error(`Failed to download segment ${index + 1} after ${maxRetries} retries.`);
+            console.warn(`Segment ${index + 1} skipped or unavailable (${segUrl})`);
           }
 
           if (this.isCancelled) break;
 
-          this.buffers[index] = arrayBuffer;
+          if (arrayBuffer) {
+            this.buffers[index] = arrayBuffer;
+            this.totalBytesDownloaded += arrayBuffer.byteLength;
+          }
+
           this.downloadedCount++;
-          this.totalBytesDownloaded += arrayBuffer.byteLength;
 
           // Calculate real-time IDM metrics (Speed & ETA)
           const now = Date.now();
@@ -252,7 +342,7 @@ export class IDMDownloader {
             lastBytesCount = this.totalBytesDownloaded;
           }
 
-          const avgBytesPerSeg = this.totalBytesDownloaded / this.downloadedCount;
+          const avgBytesPerSeg = this.downloadedCount > 0 ? this.totalBytesDownloaded / this.downloadedCount : 0;
           const remainingSegments = this.segments.length - this.downloadedCount;
           const remainingBytesEstimate = remainingSegments * avgBytesPerSeg;
           const etaSeconds = currentSpeed > 0 ? remainingBytesEstimate / currentSpeed : 0;
@@ -305,6 +395,10 @@ export class IDMDownloader {
 
       // Combine array buffers into a single MP4 Blob
       const validBuffers = this.buffers.filter(Boolean);
+      if (validBuffers.length === 0) {
+        throw new Error("No segment data could be downloaded.");
+      }
+
       const blob = new Blob(validBuffers, { type: "video/mp4" });
       const blobUrl = URL.createObjectURL(blob);
 
