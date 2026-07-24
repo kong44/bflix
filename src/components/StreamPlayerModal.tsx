@@ -640,11 +640,17 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
               </div>
 
               {videoJsError && (
-                <div className="bg-red-500/15 border border-red-500/30 p-2.5 rounded-xl text-red-300 text-xs font-mono flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                  <span>
-                    Failed to play stream: {videoJsError}. Cross-Origin Resource Sharing (CORS) or protected headers may be active on this stream. Try switching to an Embed HD Server above!
-                  </span>
+                <div className="bg-red-500/15 border border-red-500/30 p-3 rounded-xl text-red-300 text-xs font-mono flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2 font-bold text-red-400">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Browser Video.js Playback Error ({videoJsError})</span>
+                  </div>
+                  <p className="text-gray-300 text-[11px] leading-relaxed">
+                    <strong>Why IDM works vs Browser Video.js:</strong> Desktop IDM is native software outside the browser sandbox and bypasses browser CORS &amp; anti-hotlinking origin restrictions. Web players (Video.js) running in browser tabs require servers to return <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">Access-Control-Allow-Origin</code> headers.
+                  </p>
+                  <p className="text-amber-300 text-[11px]">
+                    👉 Use our <strong>BFLIX Extension v1.0.2</strong> to download this stream directly in the background!
+                  </p>
                 </div>
               )}
             </div>

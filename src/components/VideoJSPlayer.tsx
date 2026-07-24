@@ -28,7 +28,19 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
         videoRef.current.appendChild(videoElement);
       }
 
-      const player = (playerRef.current = videojs(videoElement, options, () => {
+      const mergedOptions = {
+        html5: {
+          vhs: {
+            overrideNative: true,
+            withCredentials: false
+          },
+          nativeAudioTracks: false,
+          nativeVideoTracks: false
+        },
+        ...options
+      };
+
+      const player = (playerRef.current = videojs(videoElement, mergedOptions, () => {
         if (onReady) {
           onReady(player);
         }

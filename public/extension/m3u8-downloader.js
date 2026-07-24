@@ -407,26 +407,37 @@ export class IDMDownloader {
         });
       }
 
-      // Combine array buffers into a single MP4 Blob
+      // Combine array buffers into a single video file Blob
       const validBuffers = this.buffers.filter(Boolean);
       if (validBuffers.length === 0) {
         throw new Error("No segment data could be downloaded.");
       }
 
-      const blob = new Blob(validBuffers, { type: "video/mp4" });
+      // Check segment header: MPEG-TS starts with byte 0x47
+      const firstByte = validBuffers[0] && validBuffers[0].byteLength > 0 ? new Uint8Array(validBuffers[0])[0] : 0;
+      const isTsContainer = firstByte === 0x47;
+      const mimeType = isTsContainer ? "video/mp2t" : "video/mp4";
+
+      const blob = new Blob(validBuffers, { type: mimeType });
       const blobUrl = URL.createObjectURL(blob);
+
+      // Force output filename to end with .mp4
+      let outFilename = this.filename || "BFlix_Movie.mp4";
+      if (!outFilename.toLowerCase().endsWith(".mp4")) {
+        outFilename = `${outFilename.replace(/\.[^/.]+$/, "")}.mp4`;
+      }
 
       // Trigger Chrome download or browser download
       if (typeof chrome !== "undefined" && chrome.downloads) {
         chrome.downloads.download({
           url: blobUrl,
-          filename: this.filename,
+          filename: outFilename,
           saveAs: true
         });
       } else {
         const a = document.createElement("a");
         a.href = blobUrl;
-        a.download = this.filename;
+        a.download = outFilename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -435,7 +446,7 @@ export class IDMDownloader {
       if (this.onProgress) {
         this.onProgress({
           status: "complete",
-          message: `✅ Download Complete! Saved ${this.filename} (${formatBytes(this.totalBytesDownloaded)})`,
+          message: `✅ Download Complete! Saved ${outFilename} (${formatBytes(this.totalBytesDownloaded)})`,
           percent: 100,
           downloadedBytes: formatBytes(this.totalBytesDownloaded)
         });
