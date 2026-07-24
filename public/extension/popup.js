@@ -1,6 +1,12 @@
 import { IDMDownloader, parseMasterM3U8, generateFFmpegCommand } from "./m3u8-downloader.js";
 
 document.addEventListener("DOMContentLoaded", () => {
+  const footerEl = document.getElementById("extension-footer");
+  if (footerEl && typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest) {
+    const ver = chrome.runtime.getManifest().version;
+    footerEl.textContent = `BFLIX Extension v${ver} • Multi-threaded IDM HLS Downloader`;
+  }
+
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) return;
     const activeTabId = tabs[0].id;
