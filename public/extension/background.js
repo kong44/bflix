@@ -13,8 +13,19 @@ chrome.webRequest.onBeforeRequest.addListener(
       url.includes("/manifest/") ||
       url.includes("/hls/")
     ) {
-      // Ignore segment files in main stream detector
-      if (url.includes(".ts") && !url.includes(".m3u8")) return;
+      // Ignore segment files, subtitle files, or encryption keys in main stream detector
+      const cleanPath = url.split("?")[0].toLowerCase();
+      if (
+        cleanPath.endsWith(".ts") ||
+        cleanPath.endsWith(".m4s") ||
+        cleanPath.endsWith(".key") ||
+        cleanPath.endsWith(".vtt") ||
+        cleanPath.endsWith(".aac") ||
+        cleanPath.endsWith(".jpg") ||
+        cleanPath.endsWith(".png")
+      ) {
+        return;
+      }
 
       const tabId = details.tabId;
       if (tabId < 0) return;

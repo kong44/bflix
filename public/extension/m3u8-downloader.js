@@ -9,7 +9,7 @@ export function resolveUrl(line, baseUrl) {
   line = (line || "").trim();
   if (!line) return "";
 
-  // Protocol-relative URL (e.g. //i-cdn-0.kriss424did.com/stream2/...)
+  // 1. Protocol-relative URL (e.g. //i-cdn-0.kriss424did.com/stream2/...)
   if (line.startsWith("//")) {
     try {
       const baseObj = new URL(baseUrl);
@@ -19,7 +19,7 @@ export function resolveUrl(line, baseUrl) {
     }
   }
 
-  // Already absolute URL
+  // 2. Already absolute URL (http:// or https://)
   if (line.startsWith("http://") || line.startsWith("https://")) {
     return line;
   }
@@ -27,7 +27,7 @@ export function resolveUrl(line, baseUrl) {
   try {
     const baseObj = new URL(baseUrl);
 
-    // Root-relative URL (starts with /)
+    // 3. Root-relative URL (starts with /)
     if (line.startsWith("/")) {
       const resolved = new URL(line, baseObj.origin);
       if (baseObj.search && !resolved.search) {
@@ -36,33 +36,24 @@ export function resolveUrl(line, baseUrl) {
       return resolved.href;
     }
 
-    // Check if line matches exact end of baseObj.pathname
-    if (baseObj.pathname.endsWith("/" + line) || baseObj.pathname.endsWith(line)) {
-      return baseUrl;
-    }
-
+    // 4. Relative URL: Check for duplicate folder name prefix
+    // (e.g. baseUrl = .../1080/index.m3u8 and line = 1080/index.m3u8 or 1080/0.ts)
     const pathSegments = baseObj.pathname.split("/").filter(Boolean);
-    const lineParts = line.split("/").filter(Boolean);
-    const firstLineSegment = lineParts[0];
-
-    // Check if the first segment of `line` already exists as a parent directory in `pathSegments`
-    // (excluding the last segment which is the playlist filename itself like index.m3u8)
-    const matchIdx = pathSegments.findIndex(
-      (seg, idx) => seg === firstLineSegment && idx < pathSegments.length - 1
-    );
-
-    if (matchIdx !== -1) {
-      // Avoid duplicate path accumulation! Resolve `line` relative to parent folder prefix before matchIdx
-      const parentDirSegments = pathSegments.slice(0, matchIdx);
-      const parentPath = "/" + parentDirSegments.join("/") + (parentDirSegments.length ? "/" : "");
-      const resolved = new URL(line, baseObj.origin + parentPath);
-      if (baseObj.search && !resolved.search) {
-        resolved.search = baseObj.search;
+    if (pathSegments.length >= 2) {
+      const currentDir = pathSegments[pathSegments.length - 2];
+      if (currentDir && (line.startsWith(currentDir + "/") || line === currentDir)) {
+        const parentSegments = pathSegments.slice(0, pathSegments.length - 2);
+        const parentPath = "/" + parentSegments.join("/") + (parentSegments.length ? "/" : "");
+        const parentUrl = baseObj.origin + parentPath;
+        const resolved = new URL(line, parentUrl);
+        if (baseObj.search && !resolved.search) {
+          resolved.search = baseObj.search;
+        }
+        return resolved.href;
       }
-      return resolved.href;
     }
 
-    // Standard relative URL resolution
+    // 5. Standard relative URL resolution
     const resolved = new URL(line, baseUrl);
     if (baseObj.search && !resolved.search) {
       resolved.search = baseObj.search;
