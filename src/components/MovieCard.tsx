@@ -3,6 +3,7 @@ import { Movie } from "../types";
 import { Star, Bookmark, BookmarkCheck, Sparkles, Film, Play, Download } from "lucide-react";
 import PosterFallback from "./PosterFallback";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 
 interface MovieCardProps {
   key?: string;
@@ -16,6 +17,7 @@ interface MovieCardProps {
 
 export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, isWatchlisted, onToggleWatchlist }: MovieCardProps) {
   const [imageError, setImageError] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -89,7 +91,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
               className="flex items-center gap-2 bg-imdb hover:bg-imdb-hover text-black text-xs font-bold py-2 px-3 rounded-lg w-full justify-center transition-colors shadow-lg"
             >
               <Play className="w-3.5 h-3.5 fill-black" />
-              <span>Watch Stream</span>
+              <span>{t("hero.watchStream")}</span>
             </button>
           )}
 
@@ -102,7 +104,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg w-full justify-center transition-colors backdrop-blur-md border border-white/10"
             >
               <Download className="w-3.5 h-3.5 text-imdb" />
-              <span>Download MP4</span>
+              <span>{t("hero.downloadMp4")}</span>
             </button>
           )}
         </div>
@@ -132,7 +134,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
           <p className="text-[11px] text-gray-500 font-mono flex items-center gap-1.5">
             <span>{movie.year}</span>
             <span className="text-gray-700">•</span>
-            <span className="line-clamp-1">Dir: {movie.director}</span>
+            <span className="line-clamp-1">{t("hero.director")} {movie.director}</span>
           </p>
 
           {/* Plot snippet */}

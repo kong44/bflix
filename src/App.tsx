@@ -34,11 +34,19 @@ import {
   Layers,
   Grid,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  Languages
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
 
 export default function App() {
+  const { t, i18n } = useTranslation();
+  const currentLang = i18n.language || "en";
+
+  const changeLanguage = (lang: string) => {
+    i18n.changeLanguage(lang);
+  };
   // Navigation & UI tabs
   const [activeTab, setActiveTab] = useState<"browse" | "recommend" | "watchlist">("browse");
   
@@ -249,6 +257,30 @@ export default function App() {
     });
   };
 
+  const getCategoryLabel = (catId: string) => {
+    const keyMap: Record<string, string> = {
+      trending: "category.trending",
+      popular: "category.popular",
+      top_rated: "category.topRated",
+      now_playing: "category.trending",
+      upcoming: "category.upcoming",
+      action: "category.action",
+      "sci-fi": "category.scifi",
+      comedy: "category.comedy",
+      drama: "category.drama",
+      horror: "category.horror",
+      animation: "category.animation",
+      thriller: "category.thriller",
+      adventure: "category.adventure",
+      romance: "category.romance",
+      crime: "category.crime",
+      fantasy: "category.fantasy",
+      mystery: "category.mystery"
+    };
+    const key = keyMap[catId];
+    return key ? t(key) : CATEGORIES.find((c) => c.id === catId)?.name || catId;
+  };
+
   return (
     <div className="min-h-screen bg-[#020203] text-zinc-100 flex flex-col font-sans selection:bg-imdb selection:text-black antialiased relative">
       {/* Absolute high-end noise overlay */}
@@ -261,52 +293,78 @@ export default function App() {
             <span className="text-white font-black font-extrabold mr-[3px]">B</span>
             <span className="text-black font-black">Flix</span>
           </div>
-          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5 hidden xs:inline-block">CINEMA STREAM</span>
+          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5 hidden xs:inline-block">{t("tagline")}</span>
         </div>
 
-        {/* Tab Selection Navigation */}
-        <nav className="flex items-center gap-1 sm:gap-2">
-          <button
-            onClick={() => setActiveTab("browse")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
-              activeTab === "browse"
-                ? "bg-white/10 text-imdb font-semibold border border-white/10"
-                : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" />
-            <span>Movies</span>
-          </button>
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
+          {/* Tab Selection Navigation */}
+          <nav className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => setActiveTab("browse")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
+                activeTab === "browse"
+                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>{t("nav.movies")}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("recommend")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
-              activeTab === "recommend"
-                ? "bg-white/10 text-imdb font-semibold border border-white/10"
-                : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Vibe Finder</span>
-          </button>
+            <button
+              onClick={() => setActiveTab("recommend")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
+                activeTab === "recommend"
+                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{t("nav.aiFinder")}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("watchlist")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
-              activeTab === "watchlist"
-                ? "bg-white/10 text-imdb font-semibold border border-white/10"
-                : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-            }`}
-          >
-            <Bookmark className="w-3.5 h-3.5" />
-            <span>Watchlist</span>
-            {watchlist.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-imdb text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-[#020203]">
-                {watchlist.length}
-              </span>
-            )}
-          </button>
-        </nav>
+            <button
+              onClick={() => setActiveTab("watchlist")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
+                activeTab === "watchlist"
+                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+              }`}
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span>{t("nav.watchlist")}</span>
+              {watchlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-imdb text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-[#020203]">
+                  {watchlist.length}
+                </span>
+              )}
+            </button>
+          </nav>
+
+          {/* Language Switcher Switcher Bar */}
+          <div className="flex items-center gap-1 bg-[#121215] border border-white/10 rounded-full p-1 shadow-md">
+            <button
+              onClick={() => changeLanguage("en")}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                currentLang.startsWith("en")
+                  ? "bg-imdb text-black shadow"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => changeLanguage("km")}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                currentLang.startsWith("km")
+                  ? "bg-imdb text-black shadow"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              ខ្មែរ
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Main Container */}
@@ -338,7 +396,7 @@ export default function App() {
                     <div className="space-y-3 max-w-2xl">
                       <div className="flex items-center gap-3">
                         <span className="px-2 py-0.5 bg-white/10 backdrop-blur-md rounded text-[10px] uppercase font-bold tracking-widest text-white border border-white/5">
-                          Top Choice
+                          {t("hero.topChoice")}
                         </span>
                         <div className="flex items-center text-imdb text-sm font-bold">
                           <Star className="w-4 h-4 fill-imdb stroke-imdb mr-1" />
@@ -357,7 +415,7 @@ export default function App() {
                       <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-400">
                         <span>{activeHero.year}</span>
                         <span>•</span>
-                        <span>Dir: {activeHero.director}</span>
+                        <span>{t("hero.director")} {activeHero.director}</span>
                         <span>•</span>
                         <span>{activeHero.runtime}</span>
                       </div>
@@ -369,7 +427,7 @@ export default function App() {
                         className="bg-imdb text-black px-6 py-3 rounded-xl font-bold text-xs flex items-center hover:bg-imdb-hover transition-colors shadow-lg cursor-pointer"
                       >
                         <Play className="w-3.5 h-3.5 mr-2 fill-black" />
-                        <span>Watch Stream</span>
+                        <span>{t("hero.watchStream")}</span>
                       </button>
                       <button
                         onClick={() => handleOpenDownloadModal(activeHero)}
@@ -377,14 +435,14 @@ export default function App() {
                         title="Download & Stream Options"
                       >
                         <Download className="w-3.5 h-3.5 mr-2 text-imdb" />
-                        <span>Download MP4</span>
+                        <span>{t("hero.downloadMp4")}</span>
                       </button>
                       <button
                         onClick={() => setSelectedMovie(activeHero)}
                         className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-5 py-3 rounded-xl font-medium text-xs flex items-center transition-colors backdrop-blur-md cursor-pointer"
                       >
                         <Info className="w-3.5 h-3.5 mr-2" />
-                        <span>Show Details</span>
+                        <span>{t("hero.showDetails")}</span>
                       </button>
                     </div>
                   </div>
@@ -404,10 +462,10 @@ export default function App() {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                        <span>Select Movie Category / Genre</span>
+                        <span>{t("category.label")}</span>
                       </h4>
                       <p className="text-[11px] text-gray-400 font-mono">
-                        Filter catalog across {CATEGORIES.length} curated categories
+                        {t("category.subLabel")} ({CATEGORIES.length})
                       </p>
                     </div>
                   </div>
@@ -422,7 +480,7 @@ export default function App() {
                       >
                         {CATEGORIES.map((cat) => (
                           <option key={cat.id} value={cat.id} className="bg-[#121215] text-white py-1.5 font-sans">
-                            {cat.name}
+                            {getCategoryLabel(cat.id)}
                           </option>
                         ))}
                       </select>
@@ -430,7 +488,7 @@ export default function App() {
                     </div>
 
                     <span className="text-xs font-mono font-bold px-3 py-2 rounded-xl bg-imdb text-black shrink-0 hidden md:inline-block shadow-md">
-                      {currentCategoryObj.name}
+                      {getCategoryLabel(selectedCategory)}
                     </span>
                   </div>
                 </div>
@@ -442,17 +500,17 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">
                       {searchResults !== null 
-                        ? `Search Results` 
-                        : `${currentCategoryObj.name} Movies`}
+                        ? t("search.resultsTitle") 
+                        : t("search.categoryTitle", { category: getCategoryLabel(selectedCategory) })}
                     </h3>
                     <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-white/10 text-amber-400 border border-amber-400/20">
-                      View All
+                      Catalog
                     </span>
                   </div>
                   <p className="text-zinc-500 text-xs font-mono mt-1">
                     {searchResults !== null 
-                      ? `Found ${totalResults.toLocaleString()} results for "${searchQuery}"` 
-                      : `Page ${currentPage} of ${totalPages} • Total ${totalResults.toLocaleString()} titles available`}
+                      ? t("search.resultsFound", { count: totalResults.toLocaleString(), query: searchQuery }) 
+                      : t("search.pageStatus", { page: currentPage, totalPages, totalResults: totalResults.toLocaleString() })}
                   </p>
                 </div>
 
@@ -464,7 +522,7 @@ export default function App() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search titles..."
+                      placeholder={t("search.placeholder")}
                       className="bg-[#121214] border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-xs w-full focus:outline-none focus:border-imdb/50 transition-colors text-white"
                     />
                   </div>
@@ -473,7 +531,7 @@ export default function App() {
                     disabled={searchLoading || !searchQuery.trim()}
                     className="px-5 bg-imdb hover:bg-imdb-hover disabled:bg-zinc-800 disabled:text-zinc-600 text-black font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center shadow-lg shrink-0"
                   >
-                    {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Search"}
+                    {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("search.button")}
                   </button>
 
                   {searchResults !== null && (
@@ -482,7 +540,7 @@ export default function App() {
                       onClick={handleClearSearch}
                       className="px-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-full transition-all border border-white/5 shrink-0"
                     >
-                      Reset
+                      {t("search.reset")}
                     </button>
                   )}
                 </form>
@@ -493,7 +551,7 @@ export default function App() {
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
                   <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-red-400">BFlix Catalog Lookup Failed</p>
+                    <p className="text-sm font-bold text-red-400">{t("search.lookupFailed")}</p>
                     <p className="text-xs text-gray-400 leading-normal">{searchError}</p>
                   </div>
                 </div>
@@ -531,8 +589,8 @@ export default function App() {
                         ) : (
                           <div className="col-span-full py-16 text-center text-gray-500 flex flex-col items-center justify-center space-y-2">
                             <Compass className="w-10 h-10 text-gray-700 mb-2" />
-                            <p className="text-sm font-mono uppercase">No search matches found.</p>
-                            <p className="text-xs max-w-sm">Try searching for simple title fragments or spelling changes.</p>
+                            <p className="text-sm font-mono uppercase">{t("search.noResultsTitle")}</p>
+                            <p className="text-xs max-w-sm">{t("search.noResultsSub")}</p>
                           </div>
                         )
                       ) : (
@@ -556,9 +614,7 @@ export default function App() {
                   {totalPages > 1 && (
                     <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="text-xs text-gray-400 font-mono">
-                        Page <span className="text-white font-bold">{currentPage}</span> of{" "}
-                        <span className="text-white font-bold">{totalPages}</span>{" "}
-                        <span className="text-gray-600">({totalResults.toLocaleString()} total titles)</span>
+                        {t("pagination.pageOf", { page: currentPage, totalPages })}
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -568,7 +624,7 @@ export default function App() {
                           className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs text-gray-300 font-medium transition-all flex items-center gap-1 border border-white/5 cursor-pointer"
                         >
                           <ChevronLeft className="w-4 h-4" />
-                          <span>Previous</span>
+                          <span>{t("pagination.previous")}</span>
                         </button>
 
                         <div className="flex items-center gap-1">
@@ -580,7 +636,7 @@ export default function App() {
                           disabled={currentPage >= totalPages}
                           className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs text-gray-300 font-medium transition-all flex items-center gap-1 border border-white/5 cursor-pointer"
                         >
-                          <span>Next</span>
+                          <span>{t("pagination.next")}</span>
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
@@ -605,14 +661,14 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
                   <div>
-                    <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">AI Curated Picks</h3>
-                    <p className="text-xs text-gray-500 font-mono mt-1">Tailored exclusively to match your description.</p>
+                    <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">{t("ai.curatedTitle")}</h3>
+                    <p className="text-xs text-gray-500 font-mono mt-1">{t("ai.curatedSub")}</p>
                   </div>
                   <button
                     onClick={() => setAiRecommendations([])}
                     className="text-xs text-imdb hover:text-imdb-hover font-mono"
                   >
-                    Clear Recommendations
+                    {t("ai.clear")}
                   </button>
                 </div>
 
@@ -640,9 +696,9 @@ export default function App() {
             <div>
               <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight flex items-center gap-2">
                 <Heart className="w-5 h-5 text-imdb" />
-                Personal Archive Watchlist
+                {t("watchlist.title")}
               </h3>
-              <p className="text-gray-500 text-xs font-mono mt-1">Saved cinematic choices in your active browser session.</p>
+              <p className="text-gray-500 text-xs font-mono mt-1">{t("watchlist.subtitle")}</p>
             </div>
 
             {watchlist.length > 0 ? (
@@ -666,16 +722,16 @@ export default function App() {
                   <Bookmark className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-bold text-zinc-200">Your Watchlist is empty</h4>
+                  <h4 className="font-bold text-zinc-200">{t("watchlist.emptyTitle")}</h4>
                   <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
-                    Bookmark legendary titles from our spotlights or search results to build your personalized watchlist.
+                    {t("watchlist.emptySub")}
                   </p>
                 </div>
                 <button
                   onClick={() => setActiveTab("browse")}
                   className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-semibold text-imdb rounded-xl transition-all cursor-pointer border border-white/5"
                 >
-                  Explore Spotlight Movies
+                  {t("watchlist.exploreBtn")}
                 </button>
               </div>
             )}
@@ -685,10 +741,10 @@ export default function App() {
 
       {/* Footer credits */}
       <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-4 mt-12">
-        <span>© BFlix Cinema. All rights reserved.</span>
+        <span>{t("footer.rights")}</span>
         <div className="flex gap-4 items-center uppercase tracking-wider text-xs">
           <a href="https://mebon.io" target="_blank" rel="noopener noreferrer" className="hover:text-amber-400 text-gray-400 transition-colors flex items-center gap-1.5 font-medium">
-            Powered by <span className="text-imdb font-bold hover:underline">mebon.io</span>
+            {t("footer.poweredBy")} <span className="text-imdb font-bold hover:underline">mebon.io</span>
           </a>
         </div>
       </footer>

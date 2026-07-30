@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Sparkles, Loader2, ArrowRight, Compass } from "lucide-react";
 import { Movie } from "../types";
 import { getAIRecommendations } from "../services/tmdb";
+import { useTranslation } from "react-i18next";
 
 interface AIRecommenderProps {
   onRecommendationsFound: (movies: Movie[]) => void;
@@ -17,6 +18,7 @@ const PRESET_PROMPTS = [
 ];
 
 export default function AIRecommender({ onRecommendationsFound, onClear }: AIRecommenderProps) {
+  const { t } = useTranslation();
   const [preferences, setPreferences] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,13 +56,13 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
       <div className="space-y-2 relative">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-imdb/10 border border-imdb/20 text-imdb text-xs font-mono font-medium">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>CineAI Recommendation Assistant</span>
+          <span>{t("ai.title")}</span>
         </div>
         <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
-          What movie atmosphere are you looking for today?
+          {t("ai.title")}
         </h3>
         <p className="text-gray-400 text-xs sm:text-sm leading-relaxed max-w-2xl font-sans font-light">
-          Describe your mood, specific plots, visual themes, or combinations (e.g., <em>"A vintage detective story in a rainy cyberpunk metropolis with high-tension synth chords"</em>) and Gemini will find perfect matches from IMDb.
+          {t("ai.subtitle")}
         </p>
       </div>
 
@@ -72,7 +74,7 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
               type="text"
               value={preferences}
               onChange={(e) => setPreferences(e.target.value)}
-              placeholder="Describe your desired movie atmosphere, mood, aesthetic..."
+              placeholder={t("ai.placeholder")}
               disabled={loading}
               className="w-full bg-[#020203] hover:bg-black text-white placeholder-gray-500 border border-white/10 focus:border-imdb/50 rounded-full px-5 py-3 text-xs transition-all shadow-inner outline-none disabled:opacity-50"
               onKeyDown={(e) => e.key === "Enter" && handleRecommend()}
@@ -90,7 +92,7 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
               </>
             ) : (
               <>
-                <span>Generate List</span>
+                <span>{t("ai.findButton")}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
