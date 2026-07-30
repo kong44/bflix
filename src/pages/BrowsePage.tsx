@@ -247,7 +247,9 @@ export default function BrowsePage({
     <div className="space-y-10">
       {/* Featured Hero Carousel Section */}
       {searchResults === null && activeHero && !curatedLoading && (
-        <section className="relative w-full rounded-3xl overflow-hidden border border-white/10 bg-[#070709] min-h-[460px] sm:min-h-[520px] flex items-end shadow-2xl">
+        <section className="relative w-full rounded-3xl overflow-hidden liquid-glass min-h-[460px] sm:min-h-[520px] flex items-end shadow-2xl relative">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent z-20 pointer-events-none" />
+
           <AnimatePresence mode="wait">
             <motion.div
               key={activeHero.id}
@@ -262,8 +264,8 @@ export default function BrowsePage({
                 alt={activeHero.title}
                 className="w-full h-full object-cover opacity-35 filter contrast-125"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020203] via-[#020203]/70 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020203] via-[#020203]/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#030408] via-[#030408]/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#030408] via-[#030408]/60 to-transparent" />
             </motion.div>
           </AnimatePresence>
 
@@ -278,10 +280,10 @@ export default function BrowsePage({
                 className="space-y-3"
               >
                 <div className="flex items-center gap-3">
-                  <span className="px-2.5 py-1 bg-imdb text-black font-extrabold text-[10px] uppercase tracking-widest rounded shadow">
+                  <span className="px-3 py-1 liquid-btn-gold text-black font-extrabold text-[10px] uppercase tracking-widest rounded-full shadow-lg">
                     {t("hero.topChoice")}
                   </span>
-                  <div className="flex items-center text-imdb text-sm font-bold">
+                  <div className="flex items-center text-imdb text-sm font-bold liquid-glass-pill px-2.5 py-0.5 rounded-full border border-white/20">
                     <Star className="w-4 h-4 fill-imdb stroke-imdb mr-1" />
                     <span>{activeHero.imdbRating}</span>
                   </div>
@@ -296,31 +298,31 @@ export default function BrowsePage({
                 </p>
 
                 <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-400 py-1">
-                  <span>{activeHero.year}</span>
+                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.year}</span>
                   <span>•</span>
-                  <span>{t("hero.director")} {activeHero.director}</span>
+                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{t("hero.director")} {activeHero.director}</span>
                   <span>•</span>
-                  <span>{activeHero.runtime}</span>
+                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.runtime}</span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     onClick={() => onStreamMovie(activeHero)}
-                    className="bg-imdb text-black px-6 py-3 rounded-xl font-extrabold text-xs flex items-center hover:bg-imdb-hover transition-colors shadow-lg cursor-pointer"
+                    className="liquid-btn-gold text-black px-6 py-3 rounded-xl font-extrabold text-xs flex items-center shadow-xl cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 mr-2 fill-black" />
                     <span>{t("hero.watchStream")}</span>
                   </button>
                   <button
                     onClick={() => onDownloadMovie(activeHero)}
-                    className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-colors backdrop-blur-md cursor-pointer"
+                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
                   >
                     <Download className="w-3.5 h-3.5 mr-2 text-imdb" />
                     <span>{t("hero.downloadMp4")}</span>
                   </button>
                   <button
                     onClick={() => navigate(`/movie/${activeHero.id}`)}
-                    className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-colors backdrop-blur-md cursor-pointer"
+                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
                   >
                     <Info className="w-3.5 h-3.5 mr-2" />
                     <span>{t("hero.showDetails")}</span>
@@ -336,7 +338,7 @@ export default function BrowsePage({
                   key={idx}
                   onClick={() => setHeroIndex(idx)}
                   className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                    idx === heroIndex ? "w-6 bg-imdb" : "w-1.5 bg-white/30 hover:bg-white/60"
+                    idx === heroIndex ? "w-6 bg-imdb shadow-[0_0_10px_rgba(245,197,24,0.6)]" : "w-1.5 bg-white/30 hover:bg-white/60"
                   }`}
                 />
               ))}
@@ -348,10 +350,10 @@ export default function BrowsePage({
       {/* Catalog & Filter Section */}
       <section id="catalog-section" className="space-y-6">
         {/* Category Pill Navigation */}
-        <div className="bg-[#0a0a0d] border border-white/5 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+        <div className="liquid-glass rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-imdb/10 text-imdb">
+              <div className="p-2 rounded-xl bg-imdb/20 text-imdb border border-imdb/30">
                 <Grid className="w-5 h-5" />
               </div>
               <div>
@@ -368,16 +370,16 @@ export default function BrowsePage({
               <select
                 value={selectedCategory}
                 onChange={(e) => handleSelectCategory(e.target.value)}
-                className="bg-[#121215] border border-white/10 text-xs text-white rounded-xl px-4 py-2 focus:outline-none focus:border-imdb/50 font-medium cursor-pointer"
+                className="liquid-glass-input text-xs text-white rounded-xl px-4 py-2 focus:outline-none focus:border-imdb/50 font-medium cursor-pointer"
               >
                 {CATEGORIES.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-[#121215] text-white py-1.5 font-sans">
+                  <option key={cat.id} value={cat.id} className="bg-[#0b0f19] text-white py-1.5 font-sans">
                     {getCategoryLabel(cat.id)}
                   </option>
                 ))}
               </select>
 
-              <span className="text-xs font-mono font-bold px-3 py-2 rounded-xl bg-imdb text-black shrink-0 hidden md:inline-block shadow-md">
+              <span className="text-xs font-mono font-bold px-3 py-2 rounded-xl liquid-btn-gold text-black shrink-0 hidden md:inline-block shadow-md">
                 {getCategoryLabel(selectedCategory)}
               </span>
             </div>
@@ -392,8 +394,8 @@ export default function BrowsePage({
                   onClick={() => handleSelectCategory(cat.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer border ${
                     isActive
-                      ? "bg-imdb text-black border-imdb shadow-md shadow-amber-500/10"
-                      : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/5"
+                      ? "liquid-btn-gold text-black border-imdb/50 shadow-lg shadow-amber-500/20"
+                      : "liquid-glass-pill hover:bg-white/15 text-gray-300 border-white/10"
                   }`}
                 >
                   {getCategoryLabel(cat.id)}
@@ -413,7 +415,7 @@ export default function BrowsePage({
                   : t("search.categoryTitle", { category: getCategoryLabel(selectedCategory) })}
               </h3>
             </div>
-            <p className="text-zinc-500 text-xs font-mono mt-1">
+            <p className="text-zinc-400 text-xs font-mono mt-1">
               {searchResults !== null 
                 ? t("search.resultsFound", { count: totalResults.toLocaleString(), query: searchFromUrl }) 
                 : t("search.pageStatus", { page: currentPage, totalPages, totalResults: totalResults.toLocaleString() })}
@@ -422,19 +424,19 @@ export default function BrowsePage({
 
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
-              <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("search.placeholder")}
-                className="bg-[#121214] border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-xs w-full focus:outline-none focus:border-imdb/50 transition-colors text-white"
+                className="liquid-glass-input rounded-full py-2.5 pl-10 pr-4 text-xs w-full focus:outline-none focus:border-imdb/50 transition-colors text-white"
               />
             </div>
             <button
               type="submit"
               disabled={searchLoading || !searchQuery.trim()}
-              className="px-5 bg-imdb hover:bg-imdb-hover disabled:bg-zinc-800 disabled:text-zinc-600 text-black font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center shadow-lg shrink-0 h-9"
+              className="px-5 liquid-btn-gold disabled:opacity-50 text-black font-bold text-xs rounded-full transition-all cursor-pointer flex items-center justify-center shadow-lg shrink-0 h-9"
             >
               {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("search.button")}
             </button>
@@ -443,7 +445,7 @@ export default function BrowsePage({
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="px-4 bg-white/10 hover:bg-white/20 text-white font-medium text-xs rounded-full transition-all border border-white/5 shrink-0 h-9"
+                className="px-4 liquid-glass-pill hover:bg-white/20 text-white font-medium text-xs rounded-full transition-all border border-white/15 shrink-0 h-9 cursor-pointer"
               >
                 {t("search.reset")}
               </button>

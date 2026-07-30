@@ -27,11 +27,14 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3 }}
-      className="group relative bg-[#121214] rounded-xl overflow-hidden ring-1 ring-white/10 hover:ring-imdb/50 transition-all duration-300 flex flex-col h-[480px] cursor-pointer shadow-2xl"
+      className="group relative liquid-glass-card rounded-2xl overflow-hidden transition-all duration-300 flex flex-col h-[480px] cursor-pointer shadow-2xl relative"
       onClick={() => onSelect(movie)}
     >
+      {/* Specular Light Reflection Streak on Top Corner */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent z-20 pointer-events-none" />
+
       {/* Poster Image / Fallback Container */}
-      <div className="relative h-[320px] w-full overflow-hidden bg-black border-b border-white/5">
+      <div className="relative h-[310px] w-full overflow-hidden bg-black/40 border-b border-white/10">
         {!movie.poster || imageError ? (
           <PosterFallback title={movie.title} year={movie.year} genres={movie.genres} />
         ) : (
@@ -46,7 +49,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
 
         {/* Floating Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-          <div className="flex items-center gap-1 bg-black/85 backdrop-blur-md text-imdb text-xs font-bold px-2 py-1 rounded-md border border-white/10 shadow-md">
+          <div className="flex items-center gap-1 liquid-glass-pill text-imdb text-xs font-bold px-2.5 py-1 rounded-xl shadow-lg border border-white/20">
             <Star className="w-3.5 h-3.5 fill-imdb stroke-imdb" />
             <span>{movie.imdbRating}</span>
           </div>
@@ -60,7 +63,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
                 e.stopPropagation();
                 onDownloadMp4(movie);
               }}
-              className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-300 hover:text-imdb transition-all shadow-md"
+              className="p-2 liquid-glass-pill rounded-xl hover:border-imdb/50 text-gray-200 hover:text-imdb transition-all shadow-lg cursor-pointer"
               title="Download MP4 Video File"
             >
               <Download className="w-4 h-4 text-imdb" />
@@ -69,11 +72,11 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
 
           <button
             onClick={(e) => onToggleWatchlist(movie, e)}
-            className="p-2 bg-black/85 backdrop-blur-md rounded-md border border-white/10 hover:border-imdb/40 text-gray-400 hover:text-imdb transition-all shadow-md"
+            className="p-2 liquid-glass-pill rounded-xl hover:border-imdb/50 text-gray-300 hover:text-imdb transition-all shadow-lg cursor-pointer"
             title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
           >
             {isWatchlisted ? (
-              <BookmarkCheck className="w-4 h-4 text-imdb fill-imdb/20" />
+              <BookmarkCheck className="w-4 h-4 text-imdb fill-imdb/30" />
             ) : (
               <Bookmark className="w-4 h-4" />
             )}
@@ -81,14 +84,14 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
         </div>
 
         {/* Hover Action Sheet Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2 backdrop-blur-sm">
           {onStream && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onStream(movie);
               }}
-              className="flex items-center gap-2 bg-imdb hover:bg-imdb-hover text-black text-xs font-bold py-2 px-3 rounded-lg w-full justify-center transition-colors shadow-lg"
+              className="flex items-center gap-2 liquid-btn-gold text-black text-xs font-extrabold py-2.5 px-3 rounded-xl w-full justify-center shadow-xl cursor-pointer"
             >
               <Play className="w-3.5 h-3.5 fill-black" />
               <span>{t("hero.watchStream")}</span>
@@ -101,7 +104,7 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
                 e.stopPropagation();
                 onDownloadMp4(movie);
               }}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold py-2 px-3 rounded-lg w-full justify-center transition-colors backdrop-blur-md border border-white/10"
+              className="flex items-center gap-2 liquid-glass-pill hover:bg-white/20 text-white text-xs font-semibold py-2.5 px-3 rounded-xl w-full justify-center transition-colors shadow-lg cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-imdb" />
               <span>{t("hero.downloadMp4")}</span>
@@ -111,14 +114,14 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
       </div>
 
       {/* Card Content Details */}
-      <div className="p-4 flex flex-col flex-grow justify-between bg-gradient-to-b from-[#121214] to-black">
+      <div className="p-4 flex flex-col flex-grow justify-between bg-gradient-to-b from-transparent to-black/30">
         <div>
           {/* Genre Row */}
           <div className="flex flex-wrap gap-1.5 mb-2">
             {movie.genres.slice(0, 3).map((g, i) => (
               <span
                 key={i}
-                className="text-[9px] font-mono tracking-wider uppercase text-gray-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded"
+                className="text-[9px] font-mono tracking-wider uppercase text-gray-300 liquid-glass-pill px-2 py-0.5 rounded-lg"
               >
                 {g}
               </span>
@@ -131,23 +134,23 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
           </h3>
 
           {/* Year / Director row */}
-          <p className="text-[11px] text-gray-500 font-mono flex items-center gap-1.5">
+          <p className="text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
             <span>{movie.year}</span>
-            <span className="text-gray-700">•</span>
+            <span className="text-gray-600">•</span>
             <span className="line-clamp-1">{t("hero.director")} {movie.director}</span>
           </p>
 
           {/* Plot snippet */}
-          <p className="text-xs text-gray-400 leading-normal mt-2 line-clamp-2 italic">
+          <p className="text-xs text-gray-300/80 leading-normal mt-2 line-clamp-2 italic font-light">
             "{movie.plot}"
           </p>
         </div>
 
         {/* If custom recommendation reason exists */}
         {movie.reason && (
-          <div className="mt-3 bg-imdb/5 border border-imdb/10 rounded-lg p-2.5 flex gap-2 items-start">
+          <div className="mt-3 liquid-glass-pill border-imdb/30 rounded-xl p-2.5 flex gap-2 items-start bg-imdb/5">
             <Sparkles className="w-3.5 h-3.5 text-imdb shrink-0 mt-0.5" />
-            <p className="text-[10.5px] text-imdb leading-tight italic line-clamp-2">
+            <p className="text-[10.5px] text-imdb leading-tight italic line-clamp-2 font-medium">
               {movie.reason}
             </p>
           </div>

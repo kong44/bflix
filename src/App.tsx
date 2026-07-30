@@ -67,30 +67,37 @@ export default function App() {
   const isWatchlistActive = location.pathname === "/watchlist";
 
   return (
-    <div className="min-h-screen bg-[#020203] text-zinc-100 flex flex-col font-sans selection:bg-imdb selection:text-black antialiased relative">
-      {/* Absolute high-end noise overlay */}
-      <div className="absolute inset-0 bg-noise opacity-[0.015] pointer-events-none z-40" />
+    <div className="min-h-screen bg-[#030408] text-zinc-100 flex flex-col font-sans selection:bg-imdb selection:text-black antialiased relative overflow-x-hidden">
+      {/* Background Ambient Liquid Glowing Orbs */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-600/20 rounded-full blur-[120px] animate-liquid-orb-1" />
+        <div className="absolute top-1/3 -right-40 w-[30rem] h-[30rem] bg-indigo-600/15 rounded-full blur-[140px] animate-liquid-orb-2" />
+        <div className="absolute bottom-10 left-1/4 w-[26rem] h-[26rem] bg-amber-500/15 rounded-full blur-[130px] animate-liquid-orb-3" />
+      </div>
 
-      {/* Modern High-End Top Navigation Header */}
-      <header className="sticky top-0 bg-[#020203]/85 backdrop-blur-md border-b border-white/5 z-30 px-6 sm:px-8 py-3.5 flex flex-col sm:flex-row gap-4 items-center justify-between">
+      {/* Absolute high-end noise overlay */}
+      <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none z-10" />
+
+      {/* Modern Liquid Glass Top Navigation Header */}
+      <header className="sticky top-0 bg-[#060913]/60 backdrop-blur-2xl border-b border-white/10 z-30 px-6 sm:px-8 py-3.5 flex flex-col sm:flex-row gap-4 items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
         <Link to="/" className="flex items-center gap-2.5 cursor-pointer group">
-          <div className="bg-imdb font-black px-2.5 py-0.5 rounded text-xl italic tracking-tight shadow-md select-none inline-flex items-center">
+          <div className="bg-gradient-to-r from-imdb to-amber-500 font-black px-3 py-1 rounded-xl text-xl italic tracking-tight shadow-[0_4px_20px_rgba(245,197,24,0.4)] border border-white/30 select-none inline-flex items-center backdrop-blur-md">
             <span className="text-white font-black font-extrabold mr-[3px]">B</span>
             <span className="text-black font-black">Flix</span>
           </div>
-          <span className="text-xs font-semibold tracking-widest text-gray-400 uppercase border-l border-white/10 pl-2.5 hidden xs:inline-block">
+          <span className="text-xs font-semibold tracking-widest text-gray-300 uppercase border-l border-white/15 pl-2.5 hidden xs:inline-block">
             {t("tagline")}
           </span>
         </Link>
 
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
           {/* Tab Selection Page Navigation */}
-          <nav className="flex items-center gap-1 sm:gap-2">
+          <nav className="flex items-center gap-1 sm:gap-2 p-1 bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-full shadow-inner">
             <Link
               to="/"
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
                 isBrowseActive
-                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  ? "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
                   : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
               }`}
             >
@@ -102,7 +109,7 @@ export default function App() {
               to="/vibe-finder"
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
                 isAiActive
-                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  ? "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
                   : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
               }`}
             >
@@ -114,7 +121,7 @@ export default function App() {
               to="/watchlist"
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
                 isWatchlistActive
-                  ? "bg-white/10 text-imdb font-semibold border border-white/10"
+                  ? "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
                   : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
               }`}
             >
@@ -129,12 +136,12 @@ export default function App() {
           </nav>
 
           {/* Language Switcher Switcher Bar */}
-          <div className="flex items-center gap-1 bg-[#121215] border border-white/10 rounded-full p-1 shadow-md">
+          <div className="flex items-center gap-1 bg-white/[0.05] backdrop-blur-xl border border-white/15 rounded-full p-1 shadow-inner">
             <button
               onClick={() => changeLanguage("en")}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                 currentLang.startsWith("en")
-                  ? "bg-imdb text-black shadow"
+                  ? "liquid-btn-gold text-black shadow-md"
                   : "text-gray-400 hover:text-white"
               }`}
             >
@@ -144,7 +151,7 @@ export default function App() {
               onClick={() => changeLanguage("km")}
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                 currentLang.startsWith("km")
-                  ? "bg-imdb text-black shadow"
+                  ? "liquid-btn-gold text-black shadow-md"
                   : "text-gray-400 hover:text-white"
               }`}
             >

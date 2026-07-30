@@ -275,12 +275,15 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: "spring", duration: 0.4 }}
-          className="relative bg-[#0a0a0c] border border-white/10 rounded-3xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col my-auto"
+          className="relative liquid-glass rounded-3xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col my-auto border border-white/20"
         >
+          {/* Specular light highlight */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent z-20 pointer-events-none" />
+
           {/* Header Controls Bar */}
-          <div className="bg-[#121215] border-b border-white/10 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-[#0b0f19]/70 backdrop-blur-xl border-b border-white/10 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-imdb text-black font-black rounded-lg">
+              <div className="p-2 liquid-btn-gold text-black font-black rounded-xl shadow-lg">
                 <Play className="w-4 h-4 fill-black" />
               </div>
               <div>
@@ -290,7 +293,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   </h3>
                   <span className="text-xs text-gray-400 font-mono">({movie.year})</span>
                 </div>
-                <p className="text-[11px] text-gray-500 font-mono flex items-center gap-2">
+                <p className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
                   <span>TMDB ID: <strong className="text-amber-400">{activeTmdb || "Resolving..."}</strong></span>
                   {activeImdb && (
                     <>
@@ -307,7 +310,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
               {onDownloadMp4 && (
                 <button
                   onClick={() => onDownloadMp4(movie)}
-                  className="px-3 py-2 bg-imdb/10 hover:bg-imdb/20 border border-imdb/30 text-imdb rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="px-3.5 py-2 liquid-btn-gold text-black rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
                   title="Download MP4 Video File"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -317,7 +320,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               <button
                 onClick={handleNextProvider}
-                className="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                className="px-3.5 py-2 liquid-glass-pill hover:bg-white/20 text-amber-300 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-md border border-amber-400/30"
                 title="Switch to next server"
               >
                 <span>Switch Server</span>
@@ -326,7 +329,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               <button
                 onClick={handleRefresh}
-                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Reload video stream"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -335,7 +338,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               <button
                 onClick={toggleFullscreen}
-                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Toggle Fullscreen"
               >
                 <Maximize2 className="w-3.5 h-3.5" />
@@ -346,7 +349,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 href={currentEmbedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-300 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Open stream link in new tab"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -354,7 +357,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               <button
                 onClick={onClose}
-                className="p-2.5 bg-white/10 hover:bg-red-500/20 hover:border-red-500/30 border border-white/10 rounded-full text-white transition-all ml-2 cursor-pointer"
+                className="p-2.5 liquid-glass-pill hover:bg-red-500/30 hover:border-red-500/40 rounded-full text-white transition-all ml-2 cursor-pointer shadow-md"
               >
                 <X className="w-5 h-5" />
               </button>

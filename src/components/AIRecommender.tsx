@@ -49,25 +49,27 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
   };
 
   return (
-    <div className="bg-[#121214] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-      {/* Decorative background glow */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-imdb/5 rounded-full blur-[100px] pointer-events-none" />
+    <div className="liquid-glass rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
+      {/* Specular light highlight */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent z-20 pointer-events-none" />
+      {/* Decorative background liquid glow */}
+      <div className="absolute top-0 right-0 w-72 h-72 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
       
-      <div className="space-y-2 relative">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-imdb/10 border border-imdb/20 text-imdb text-xs font-mono font-medium">
+      <div className="space-y-2 relative z-10">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass-pill text-imdb text-xs font-mono font-medium border border-white/20">
           <Sparkles className="w-3.5 h-3.5" />
           <span>{t("ai.title")}</span>
         </div>
         <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase">
           {t("ai.title")}
         </h3>
-        <p className="text-gray-400 text-xs sm:text-sm leading-relaxed max-w-2xl font-sans font-light">
+        <p className="text-gray-300 text-xs sm:text-sm leading-relaxed max-w-2xl font-sans font-light">
           {t("ai.subtitle")}
         </p>
       </div>
 
       {/* Input Form */}
-      <div className="space-y-4 relative">
+      <div className="space-y-4 relative z-10">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-grow">
             <input
@@ -76,14 +78,14 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
               onChange={(e) => setPreferences(e.target.value)}
               placeholder={t("ai.placeholder")}
               disabled={loading}
-              className="w-full bg-[#020203] hover:bg-black text-white placeholder-gray-500 border border-white/10 focus:border-imdb/50 rounded-full px-5 py-3 text-xs transition-all shadow-inner outline-none disabled:opacity-50"
+              className="w-full liquid-glass-input text-white placeholder-gray-400 border border-white/20 focus:border-imdb/50 rounded-full px-5 py-3 text-xs transition-all shadow-inner outline-none disabled:opacity-50"
               onKeyDown={(e) => e.key === "Enter" && handleRecommend()}
             />
           </div>
           <button
             onClick={() => handleRecommend()}
             disabled={loading || !preferences.trim()}
-            className="bg-imdb hover:bg-imdb-hover disabled:bg-zinc-800 disabled:text-zinc-600 disabled:shadow-none text-black font-bold text-xs px-6 py-3 rounded-full transition-all flex items-center justify-center gap-2 shrink-0 select-none cursor-pointer shadow-lg"
+            className="liquid-btn-gold disabled:opacity-50 text-black font-extrabold text-xs px-6 py-3 rounded-full transition-all flex items-center justify-center gap-2 shrink-0 select-none cursor-pointer shadow-xl"
           >
             {loading ? (
               <>
@@ -101,7 +103,7 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
 
         {/* Preset tags suggestion */}
         <div className="space-y-2">
-          <span className="text-[10px] font-mono tracking-wider uppercase text-gray-500 block">
+          <span className="text-[10px] font-mono tracking-wider uppercase text-gray-400 block">
             Or select a premium atmosphere preset:
           </span>
           <div className="flex flex-wrap gap-2">
@@ -110,10 +112,10 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
                 key={index}
                 onClick={() => handleRecommend(preset.prompt)}
                 disabled={loading}
-                className={`text-xs px-3.5 py-1.5 rounded-lg border text-left transition-all font-sans select-none ${
+                className={`text-xs px-3.5 py-1.5 rounded-xl border text-left transition-all font-sans select-none cursor-pointer ${
                   preferences === preset.prompt
-                    ? "bg-imdb/10 border-imdb/40 text-imdb font-medium"
-                    : "bg-black/50 hover:bg-black/80 border-white/5 text-gray-400 hover:text-white"
+                    ? "liquid-btn-gold text-black font-bold border-imdb/50 shadow-md"
+                    : "liquid-glass-pill hover:bg-white/20 text-gray-300 border-white/10"
                 }`}
               >
                 {preset.label}
