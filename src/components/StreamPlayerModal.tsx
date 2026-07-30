@@ -148,6 +148,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [iframeKey, setIframeKey] = useState(0);
+  const [isSandboxEnabled, setIsSandboxEnabled] = useState<boolean>(true);
 
   // M3U8 HLS Stream State for VideoJS Engine
   const DEFAULT_M3U8_PRESETS = [
@@ -389,6 +390,25 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   <span>Video.js HTML5 Player</span>
                 </button>
               </div>
+
+              {playerEngine === "embed" && (
+                <button
+                  onClick={() => setIsSandboxEnabled((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 border transition-all cursor-pointer shadow-sm ${
+                    isSandboxEnabled
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25"
+                      : "bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                  }`}
+                  title={
+                    isSandboxEnabled
+                      ? "Strict Sandbox Active: Blocks ads, popups & window redirects from third-party embed servers."
+                      : "Sandbox Disabled: Full permissions granted."
+                  }
+                >
+                  <ShieldCheck className={`w-3.5 h-3.5 ${isSandboxEnabled ? "text-emerald-400" : "text-amber-400"}`} />
+                  <span>Sandbox: {isSandboxEnabled ? "STRICT (ON)" : "OFF"}</span>
+                </button>
+              )}
             </div>
 
             {/* Server Selector Dropdown (Shown only when in embed mode) */}
@@ -553,6 +573,15 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
             id="stream-iframe-container"
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
+            {playerEngine === "embed" && (
+              <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold backdrop-blur-md bg-black/75 border border-white/10 shadow-lg">
+                <ShieldCheck className={`w-3.5 h-3.5 ${isSandboxEnabled ? "text-emerald-400" : "text-amber-400"}`} />
+                <span className={isSandboxEnabled ? "text-emerald-300" : "text-amber-300"}>
+                  {isSandboxEnabled ? "SANDBOX PROTECTED (ADS/POPUPS BLOCKED)" : "SANDBOX UNRESTRICTED"}
+                </span>
+              </div>
+            )}
+
             {playerEngine === "videojs" ? (
               <VideoJSPlayer
                 key={activeM3u8Url}
@@ -578,12 +607,17 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
               />
             ) : (
               <iframe
-                key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}`}
+                key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}-${isSandboxEnabled ? "sandboxed" : "raw"}`}
                 src={currentEmbedUrl}
                 title={`${movie.title} Stream Player - ${selectedProvider.name}`}
                 className="w-full h-full border-0"
                 allowFullScreen
                 allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+                sandbox={
+                  isSandboxEnabled
+                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
+                    : "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-popups allow-top-navigation allow-modals"
+                }
               />
             )}
           </div>
@@ -592,8 +626,13 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
           <div className="bg-[#121215] border-t border-white/10 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono">
             <div className="flex items-center gap-3 text-emerald-400">
               <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 shrink-0" />
+                <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>Connected to {selectedProvider.name}</span>
+                {playerEngine === "embed" && (
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    {isSandboxEnabled ? "Strict Sandbox Active" : "Sandbox Permissive"}
+                  </span>
+                )}
               </div>
             </div>
             
