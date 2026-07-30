@@ -96,5 +96,129 @@
   animation: liquid-float-3 25s ease-in-out infinite;
 }
 
+/* Light Theme Glass & Utility Overrides */
+.light {
+  color-scheme: light;
+  color: #000000;
+}
+
+.light h1, 
+.light h2, 
+.light h3, 
+.light h4, 
+.light h5, 
+.light h6 {
+  color: #000000 !important;
+}
+
+.light .text-white {
+  color: #000000 !important;
+}
+
+.light .text-zinc-100,
+.light .text-zinc-200,
+.light .text-gray-100,
+.light .text-gray-200 {
+  color: #000000 !important;
+}
+
+.light .text-zinc-300,
+.light .text-gray-300 {
+  color: #0f172a !important;
+}
+
+.light .text-zinc-400,
+.light .text-zinc-500,
+.light .text-gray-400,
+.light .text-gray-500 {
+  color: #1e293b !important;
+}
+
+.light .liquid-glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  color: #0f172a;
+}
+
+.light .liquid-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.85) 100%);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06), inset 0 1px 1.5px rgba(255, 255, 255, 1);
+  color: #0f172a;
+}
+
+.light .liquid-glass-card:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(238, 242, 255, 0.95) 100%);
+  border-color: rgba(245, 197, 24, 0.9);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12), 0 0 25px rgba(245, 197, 24, 0.35), inset 0 1px 2px rgba(255, 255, 255, 1);
+}
+
+.light .liquid-btn-gold {
+  background: linear-gradient(135deg, rgba(245, 197, 24, 1) 0%, rgba(225, 170, 12, 0.95) 100%);
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 25px rgba(245, 197, 24, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.light .liquid-btn-gold * {
+  color: #000000 !important;
+}
+
+.light .liquid-glass-input {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #0f172a !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.light .liquid-glass-input::placeholder {
+  color: #64748b !important;
+}
+
+.light .liquid-glass-pill {
+  background: rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #1e293b !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Modals & Hero Banners in Light Theme */
+.light .bg-\[\#0a0a0d\],
+.light .bg-\[\#070709\],
+.light .bg-\[\#0b0f19\]\/70,
+.light .bg-\[\#121215\],
+.light .bg-\[\#0c0c0f\] {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light .bg-[#070709] img {
+  opacity: 0.15 !important;
+}
+
+.light .from-\[\#030408\] {
+  --tw-gradient-from: #f2f5f9 var(--tw-gradient-from-position) !important;
+}
+
+.light .from-\[\#0a0a0d\] {
+  --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
+}
+
+
 
 
