@@ -64,20 +64,41 @@ const PROVIDERS: StreamProvider[] = [
     id: "vidsrc_in",
     name: "VidSrc.in",
     badge: "SERVER 4",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.in/embed/movie/${imdb || tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.in/embed/tv/${imdb || tmdb || id}/${s}/${e}`
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.in/embed/movie/${tmdb || id || imdb}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.in/embed/tv/${tmdb || id || imdb}/${s}/${e}`
+  },
+  {
+    id: "vidsrc_net",
+    name: "VidSrc.net",
+    badge: "SERVER 5",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.net/embed/movie/${tmdb || id || imdb}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.net/embed/tv/${tmdb || id || imdb}/${s}/${e}`
+  },
+  {
+    id: "vidsrc_me",
+    name: "VidSrc.me",
+    badge: "SERVER 6",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.me/embed/movie?tmdb=${tmdb || id}${imdb ? `&imdb=${imdb}` : ""}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
+  },
+  {
+    id: "vidsrc_xyz",
+    name: "VidSrc.xyz",
+    badge: "SERVER 7",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.xyz/embed/movie/${tmdb || id || imdb}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.xyz/embed/tv/${tmdb || id || imdb}/${s}/${e}`
   },
   {
     id: "autoembed",
     name: "AutoEmbed",
-    badge: "SERVER 5",
+    badge: "SERVER 8",
     getMovieUrl: (tmdb, imdb, id) => `https://player.autoembed.cc/embed/movie/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://player.autoembed.cc/embed/tv/${tmdb || id}/${s}/${e}`
   },
   {
     id: "vidsrc_icu",
     name: "VidSrc.icu",
-    badge: "SERVER 6",
+    badge: "SERVER 9",
     getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.icu/embed/movie/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.icu/embed/tv/${tmdb || id}/${s}/${e}`
   },
