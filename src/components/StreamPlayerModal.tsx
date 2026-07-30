@@ -130,8 +130,6 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const selectedProvider = PROVIDERS[selectedProviderIndex];
 
   const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
-  const [blockAdsAndRedirects, setBlockAdsAndRedirects] = useState(true);
-  const [blockedCount, setBlockedCount] = useState(0);
   const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -231,135 +229,6 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const activeTmdb = tmdbId || (movie.id.startsWith("tt") ? "" : movie.id);
   const activeImdb = imdbId || (movie.id.startsWith("tt") ? movie.id : "");
   const fallbackId = movie.id;
-
-  // Global anti-redirect & popup blocker directly on website client level
-  useEffect(() => {
-    if (!blockAdsAndRedirects) return;
-
-    // Known ad & tracker keyword domains
-    const TRACKER_PATTERNS = [
-      "doubleclick", "googlesyndication", "google-analytics", "adservice",
-      "popads", "adsterra", "propellerads", "exoclick", "juicyads", "popcash",
-      "admaven", "monetag", "hilltopads", "outbrain", "taboola", "mgid",
-      "scorecardresearch", "adnxs", "criteo", "yandex.ru/metrika", "trips.com",
-      "booking.com", "agoda.com", "bet365", "1xbet", "casino"
-    ];
-
-    // 1. Override window.open to suppress ad popups/popunders created by third party embeds
-    const originalWindowOpen = window.open;
-    window.open = function (url, name, specs) {
-      console.warn("🛡️ BFLIX Anti-Redirect Shield blocked popup window attempt:", url);
-      setBlockedCount((prev) => prev + 1);
-      return null; // Block popup creation
-    };
-
-    // 2. Navigation API interceptor (Chrome, Edge, Brave, Opera, Arc)
-    // Intercepts top-level navigation attempts made by third party embed scripts to external ad domains
-    const handleNavigation = (e: any) => {
-      try {
-        const destUrl = e.destination?.url || "";
-        if (
-          destUrl &&
-          !destUrl.includes(window.location.host) &&
-          !destUrl.startsWith("blob:") &&
-          !destUrl.startsWith("data:")
-        ) {
-          e.preventDefault();
-          console.warn("🛡️ BFLIX Navigation Shield blocked top-level page redirect to:", destUrl);
-          setBlockedCount((prev) => prev + 1);
-        }
-      } catch (err) {
-        console.error("Navigation shield error:", err);
-      }
-    };
-
-    if (typeof window !== "undefined" && "navigation" in window && (window as any).navigation) {
-      (window as any).navigation.addEventListener("navigate", handleNavigation);
-    }
-
-    // 2. Intercept fetch API requests to block ad trackers
-    const originalFetch = window.fetch;
-    window.fetch = function (input, init) {
-      const urlStr = typeof input === "string" ? input : (input instanceof Request ? input.url : String(input));
-      const isTracker = TRACKER_PATTERNS.some((pattern) => urlStr.toLowerCase().includes(pattern));
-      if (isTracker) {
-        console.warn("🛡️ BFLIX Anti-Tracker blocked fetch request:", urlStr);
-        return Promise.reject(new TypeError("Blocked by BFLIX Anti-Tracker Shield"));
-      }
-      return originalFetch.apply(this, arguments as any);
-    };
-
-    // 3. Intercept XMLHttpRequest to block ad trackers
-    const originalXhrOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method: string, url: string | URL) {
-      const urlStr = String(url).toLowerCase();
-      const isTracker = TRACKER_PATTERNS.some((pattern) => urlStr.includes(pattern));
-      if (isTracker) {
-        console.warn("🛡️ BFLIX Anti-Tracker blocked XHR request:", urlStr);
-        // Point to empty dummy URL
-        return originalXhrOpen.call(this, method, "about:blank");
-      }
-      return originalXhrOpen.apply(this, arguments as any);
-    };
-
-    // 4. Intercept unrequested link clicks and tab redirects from invisible ad overlays
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      
-      const anchor = target.closest("a");
-      if (anchor) {
-        const href = anchor.getAttribute("href") || "";
-        // Block external ad links opened by invisible player overlays
-        if (
-          href.startsWith("http") &&
-          !href.includes(window.location.hostname) &&
-          (anchor.target === "_blank" || anchor.target === "_top" || anchor.target === "_parent")
-        ) {
-          const isPlayerArea = Boolean(target.closest("#stream-iframe-container"));
-          if (isPlayerArea) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.warn("🛡️ Blocked ad redirect link:", href);
-          }
-        }
-      }
-    };
-
-    // 5. Detect and prevent window blur caused by popunder tabs
-    const handleWindowBlur = () => {
-      // Re-focus main player window if an unrequested popunder tries to steal focus
-      setTimeout(() => {
-        if (document.hasFocus && !document.hasFocus()) {
-          window.focus();
-        }
-      }, 100);
-    };
-
-    // 6. Prevent top-level page unload / redirects initiated by embed scripts
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Warn user before allowing external embed script from navigating main tab away
-      e.preventDefault();
-      e.returnValue = "Stay on BFLIX to keep watching movie?";
-      return "Stay on BFLIX to keep watching movie?";
-    };
-
-    document.addEventListener("click", handleGlobalClick, true);
-    window.addEventListener("blur", handleWindowBlur);
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.open = originalWindowOpen;
-      window.fetch = originalFetch;
-      XMLHttpRequest.prototype.open = originalXhrOpen;
-      if (typeof window !== "undefined" && "navigation" in window && (window as any).navigation) {
-        (window as any).navigation.removeEventListener("navigate", handleNavigation);
-      }
-      document.removeEventListener("click", handleGlobalClick, true);
-      window.removeEventListener("blur", handleWindowBlur);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [blockAdsAndRedirects]);
 
   const currentEmbedUrl = mediaType === "movie"
     ? selectedProvider.getMovieUrl(activeTmdb, activeImdb, fallbackId)
@@ -503,21 +372,6 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   <span>Video.js HTML5 Player</span>
                 </button>
               </div>
-
-              {playerEngine === "embed" && (
-                <button
-                  onClick={() => setBlockAdsAndRedirects(!blockAdsAndRedirects)}
-                  title="Prevents iframe video player from opening popup tabs or redirecting your page"
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                    blockAdsAndRedirects
-                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25"
-                      : "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25"
-                  }`}
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  <span>{blockAdsAndRedirects ? "Anti-Redirect Shield: ACTIVE" : "Shield: OFF"}</span>
-                </button>
-              )}
             </div>
 
             {/* Server Selector Dropdown (Shown only when in embed mode) */}
@@ -724,11 +578,6 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 <ShieldCheck className="w-4 h-4 shrink-0" />
                 <span>Connected to {selectedProvider.name}</span>
               </div>
-              {blockedCount > 0 && (
-                <span className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-bold text-[10px]">
-                  Blocked {blockedCount} Redirects / Ads
-                </span>
-              )}
             </div>
             
             <div className="flex items-center gap-2 text-amber-400/90 text-center sm:text-right">
