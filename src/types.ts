@@ -15,6 +15,7 @@ export interface Movie {
   backdrop: string;
   tagline?: string;
   awards?: string;
+  videoUrl?: string;
   reason?: string; // Present for AI recommendations
 }
 
