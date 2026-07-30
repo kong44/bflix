@@ -68,11 +68,25 @@ const PROVIDERS: StreamProvider[] = [
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.in/embed/tv/${tmdb || id || imdb}/${s}/${e}`
   },
   {
+    id: "vidsrc_to",
+    name: "VidSrc.to",
+    badge: "SERVER 5",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.to/embed/movie/${tmdb || id || imdb}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.to/embed/tv/${tmdb || id || imdb}/${s}/${e}`
+  },
+  {
     id: "vidsrc_net",
     name: "VidSrc.net",
-    badge: "SERVER 5",
+    badge: "SERVER 6",
     getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.net/embed/movie/${tmdb || id || imdb}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.net/embed/tv/${tmdb || id || imdb}/${s}/${e}`
+  },
+  {
+    id: "vidsrc_vip",
+    name: "VidSrc.vip",
+    badge: "SERVER 7",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.vip/embed/movie/${tmdb || id || imdb}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.vip/embed/tv/${tmdb || id || imdb}/${s}/${e}`
   },
   {
     id: "vidsrc_me",
