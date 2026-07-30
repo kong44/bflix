@@ -148,7 +148,7 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
   const [iframeKey, setIframeKey] = useState(0);
-  const [sandboxMode, setSandboxMode] = useState<"compat" | "strict" | "off">("compat");
+  const [sandboxMode, setSandboxMode] = useState<"off" | "compat" | "strict">("off");
 
   // M3U8 HLS Stream State for VideoJS Engine
   const DEFAULT_M3U8_PRESETS = [
@@ -393,28 +393,28 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               {playerEngine === "embed" && (
                 <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl">
-                  <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "compat" ? "text-emerald-400" : sandboxMode === "strict" ? "text-cyan-400" : "text-amber-400"}`} />
-                  <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Sandbox:</span>
+                  <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "off" ? "text-emerald-400" : sandboxMode === "compat" ? "text-amber-400" : "text-cyan-400"}`} />
+                  <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Anti-Block:</span>
                   <select
                     value={sandboxMode}
-                    onChange={(e) => setSandboxMode(e.target.value as "compat" | "strict" | "off")}
+                    onChange={(e) => setSandboxMode(e.target.value as "off" | "compat" | "strict")}
                     className={`bg-transparent text-xs font-mono font-bold focus:outline-none cursor-pointer pr-1 py-0.5 rounded ${
-                      sandboxMode === "compat"
+                      sandboxMode === "off"
                         ? "text-emerald-400 font-extrabold"
-                        : sandboxMode === "strict"
-                        ? "text-cyan-400 font-extrabold"
-                        : "text-amber-400 font-extrabold"
+                        : sandboxMode === "compat"
+                        ? "text-amber-400 font-extrabold"
+                        : "text-cyan-400 font-extrabold"
                     }`}
-                    title="Compat: Recommended (Enables third-party embed video engines to load without letting ads redirect the top window). Strict: Maximum ad blocking. Off: Unrestricted."
+                    title="Anti-Block Mode (No Sandbox Attribute) prevents embed video providers from detecting sandbox restrictions and blocking video playback."
                   >
-                    <option value="compat" className="bg-[#121215] text-emerald-400">
-                      Compat (Embed Fix - Recommended)
+                    <option value="off" className="bg-[#121215] text-emerald-400 font-bold">
+                      Anti-Block Mode (Recommended - 100% Video Playback)
                     </option>
-                    <option value="strict" className="bg-[#121215] text-cyan-400">
-                      Strict (Max Block)
+                    <option value="compat" className="bg-[#121215] text-amber-400 font-bold">
+                      Permissive Sandbox (May block some servers)
                     </option>
-                    <option value="off" className="bg-[#121215] text-amber-400">
-                      Off (Unrestricted)
+                    <option value="strict" className="bg-[#121215] text-cyan-400 font-bold">
+                      Strict Sandbox (Ad Block - May block video)
                     </option>
                   </select>
                 </div>
@@ -585,13 +585,13 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
           >
             {playerEngine === "embed" && (
               <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold backdrop-blur-md bg-black/75 border border-white/10 shadow-lg">
-                <ShieldCheck className={`w-3.5 h-3.5 ${sandboxMode === "compat" ? "text-emerald-400" : sandboxMode === "strict" ? "text-cyan-400" : "text-amber-400"}`} />
-                <span className={sandboxMode === "compat" ? "text-emerald-300" : sandboxMode === "strict" ? "text-cyan-300" : "text-amber-300"}>
-                  {sandboxMode === "compat"
-                    ? "SANDBOX: COMPAT (EMBED FIX ACTIVE)"
-                    : sandboxMode === "strict"
-                    ? "SANDBOX: STRICT (ALL POPUPS BLOCKED)"
-                    : "SANDBOX: OFF (UNRESTRICTED)"}
+                <ShieldCheck className={`w-3.5 h-3.5 ${sandboxMode === "off" ? "text-emerald-400" : sandboxMode === "compat" ? "text-amber-400" : "text-cyan-400"}`} />
+                <span className={sandboxMode === "off" ? "text-emerald-300" : sandboxMode === "compat" ? "text-amber-300" : "text-cyan-300"}>
+                  {sandboxMode === "off"
+                    ? "ANTI-BLOCK MODE ACTIVE (NO SANDBOX ATTR - 100% COMPATIBLE)"
+                    : sandboxMode === "compat"
+                    ? "SANDBOX: PERMISSIVE (SOME SERVERS MAY BLOCK)"
+                    : "SANDBOX: STRICT (ALL POPUPS BLOCKED)"}
                 </span>
               </div>
             )}
@@ -626,13 +626,14 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 title={`${movie.title} Stream Player - ${selectedProvider.name}`}
                 className="w-full h-full border-0"
                 allowFullScreen
-                allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+                allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; fullscreen"
+                referrerPolicy="no-referrer"
                 sandbox={
-                  sandboxMode === "compat"
+                  sandboxMode === "off"
+                    ? undefined
+                    : sandboxMode === "compat"
                     ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-storage-access-by-user-activation"
-                    : sandboxMode === "strict"
-                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads"
-                    : "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-popups allow-top-navigation allow-modals allow-downloads"
+                    : "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads"
                 }
               />
             )}
@@ -646,13 +647,13 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 <span>Connected to {selectedProvider.name}</span>
                 {playerEngine === "embed" && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                    sandboxMode === "compat"
+                    sandboxMode === "off"
                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : sandboxMode === "strict"
-                      ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
-                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      : sandboxMode === "compat"
+                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      : "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                   }`}>
-                    {sandboxMode === "compat" ? "Compat Sandbox Active" : sandboxMode === "strict" ? "Strict Sandbox Active" : "Unrestricted Sandbox"}
+                    {sandboxMode === "off" ? "Anti-Block (No Sandbox Attr)" : sandboxMode === "compat" ? "Permissive Sandbox" : "Strict Sandbox"}
                   </span>
                 )}
               </div>
