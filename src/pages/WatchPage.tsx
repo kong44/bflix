@@ -50,6 +50,13 @@ const PROVIDERS: StreamProvider[] = [
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
   },
   {
+    id: "multiembed",
+    name: "MultiEmbed",
+    badge: "BACKUP",
+    getMovieUrl: (tmdb, imdb, id) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1&s=${s}&e=${e}`
+  },
+  {
     id: "vidsrc_cc",
     name: "VidSrc.cc",
     badge: "FAST 1080P",
@@ -118,13 +125,6 @@ const PROVIDERS: StreamProvider[] = [
     badge: "STABLE",
     getMovieUrl: (tmdb, imdb, id) => `https://www.2embed.cc/embed/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://www.2embed.cc/embedtv/${tmdb || id}&s=${s}&e=${e}`
-  },
-  {
-    id: "multiembed",
-    name: "MultiEmbed",
-    badge: "BACKUP",
-    getMovieUrl: (tmdb, imdb, id) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1&s=${s}&e=${e}`
   },
   {
     id: "smashystream",
