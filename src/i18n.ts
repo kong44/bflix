@@ -67,6 +67,7 @@ const resources = {
       },
       search: {
         placeholder: "Search titles...",
+        headerPlaceholder: "Search movies, series...",
         button: "Search",
         reset: "Reset",
         resultsTitle: "Search Results",
@@ -75,7 +76,11 @@ const resources = {
         pageStatus: "Page {{page}} of {{totalPages}} • Total {{totalResults}} titles available",
         noResultsTitle: "No search matches found.",
         noResultsSub: "Try searching for simple title fragments or spelling changes.",
-        lookupFailed: "BFlix Catalog Lookup Failed"
+        lookupFailed: "BFlix Catalog Lookup Failed",
+        viewAllResults: "View all {{count}} results for \"{{query}}\"",
+        viewAll: "View all results",
+        noResults: "No matching titles found",
+        searching: "Searching..."
       },
       pagination: {
         previous: "Previous",
@@ -210,6 +215,7 @@ const resources = {
       },
       search: {
         placeholder: "ស្វែងរកចំណងជើងភាពយន្ត...",
+        headerPlaceholder: "ស្វែងរកភាពយន្ត ឬរឿងភាគ...",
         button: "ស្វែងរក",
         reset: "កំណត់ឡើងវិញ",
         resultsTitle: "លទ្ធផលស្វែងរក",
@@ -218,7 +224,11 @@ const resources = {
         pageStatus: "ទំព័រ {{page}} នៃ {{totalPages}} • សរុប {{totalResults}} ចំណងជើង",
         noResultsTitle: "រកមិនឃើញភាពយន្តដែលត្រូវគ្នានោះទេ។",
         noResultsSub: "សូមព្យាយាមស្វែងរកពាក្យគន្លឹះខ្លីៗ ឬពិនិត្យមើលអក្ខរាវិរុទ្ធឡើងវិញ។",
-        lookupFailed: "ការស្វែងរកកាតាឡុក BFlix បរាជ័យ"
+        lookupFailed: "ការស្វែងរកកាតាឡុក BFlix បរាជ័យ",
+        viewAllResults: "មើលលទ្ធផលទាំងអស់ {{count}} សម្រាប់ «{{query}}»",
+        viewAll: "មើលលទ្ធផលទាំងអស់",
+        noResults: "រកមិនឃើញភាពយន្តដែលត្រូវគ្នានោះទេ",
+        searching: "កំពុងស្វែងរក..."
       },
       pagination: {
         previous: "ទំព័រមុន",

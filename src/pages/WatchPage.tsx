@@ -314,6 +314,19 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
     }
   };
 
+  const handleNextProvider = () => {
+    const nextIdx = (selectedProviderIndex + 1) % PROVIDERS.length;
+    setSelectedProviderIndex(nextIdx);
+    setIframeKey((k) => k + 1);
+    try {
+      if (PROVIDERS[nextIdx]) {
+        localStorage.setItem("bflix_stream_server", PROVIDERS[nextIdx].id);
+      }
+    } catch (err) {
+      console.warn("Failed to save stream server to localStorage:", err);
+    }
+  };
+
   // Inspect & Stream In VideoJS Engine
   const handleInspectAndStreamInVideoJS = async () => {
     if (!movie) return;
@@ -454,9 +467,9 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
             )}
           </div>
 
-          {/* Server Switcher Dropdown */}
+          {/* Server Switcher Dropdown & Controls */}
           {playerEngine === "embed" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <label htmlFor="server-select-watch" className="text-xs uppercase font-mono text-gray-400 font-bold flex items-center gap-1.5">
                 <Server className="w-3.5 h-3.5 text-imdb" />
                 <span className="hidden sm:inline">Server:</span>
@@ -483,10 +496,21 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
                 ))}
               </select>
 
+              {/* One-Click Switch Server Button */}
+              <button
+                onClick={handleNextProvider}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 border border-amber-400/30 text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title={`Switch to next server (${PROVIDERS[(selectedProviderIndex + 1) % PROVIDERS.length]?.name})`}
+              >
+                <span>Switch Server</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Reload Stream Button */}
               <button
                 onClick={() => setIframeKey((k) => k + 1)}
                 className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 transition-colors cursor-pointer border border-white/10"
-                title="Reload Stream Player"
+                title="Reload current stream player"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
@@ -572,7 +596,7 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
 
         {/* Video Stage Footer Bar */}
         <div className="bg-[#0b0f19]/90 border-t border-white/10 px-5 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-emerald-400 flex items-center gap-1.5 font-bold">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Playing on {selectedProvider.name}</span>
@@ -581,6 +605,19 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
               <span className="text-imdb font-bold">
                 S{season}:E{episode}
               </span>
+            )}
+            {playerEngine === "embed" && (
+              <div className="flex items-center gap-1 text-amber-400/90 text-[11px] sm:border-l sm:border-white/10 sm:pl-3">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                <span className="hidden md:inline">Server slow or blocked?</span>
+                <button
+                  onClick={handleNextProvider}
+                  className="underline hover:text-amber-300 font-bold cursor-pointer"
+                  title="Switch to next server"
+                >
+                  Switch Server
+                </button>
+              </div>
             )}
           </div>
 
