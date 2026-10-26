@@ -520,24 +520,6 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
 
         {/* 16:9 Aspect Video Stage */}
         <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
-          {/* Ad Shield Status Ribbon */}
-          {playerEngine === "embed" && (
-            <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold backdrop-blur-md bg-black/80 border border-white/10 shadow-lg">
-              {sandboxMode === "off" ? (
-                <ShieldOff className="w-3.5 h-3.5 text-rose-400" />
-              ) : (
-                <ShieldCheck className={`w-3.5 h-3.5 ${sandboxMode === "strict" ? "text-emerald-400" : "text-amber-400"}`} />
-              )}
-              <span className={sandboxMode === "strict" ? "text-emerald-300" : sandboxMode === "compat" ? "text-amber-300" : "text-rose-300"}>
-                {sandboxMode === "strict"
-                  ? "SHIELD: STRICT (ALL ADS & POPUPS BLOCKED)"
-                  : sandboxMode === "compat"
-                  ? "SHIELD: BALANCED"
-                  : "SHIELD: OFF (ADS ALLOWED)"}
-              </span>
-            </div>
-          )}
-
           {playerEngine === "videojs" ? (
             <VideoJSPlayer
               key={activeM3u8Url}
