@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Movie, MovieDetail } from "../types";
-import { fetchMovieDetails, fetchMoviesByCategory } from "../services/tmdb";
-import { ArrowLeft, Star, Calendar, Clock, Trophy, Play, Download, Sparkles, Loader2, Info } from "lucide-react";
-import PosterFallback from "../components/PosterFallback";
+import { Movie, MovieDetail, TvEpisode } from "../types";
+import { fetchMovieDetails, fetchTvSeasonEpisodes } from "../services/tmdb";
+import { ArrowLeft, Star, Calendar, Clock, Trophy, Play, Download, Sparkles, Loader2, Info, Tv } from "lucide-react";
+import PosterFallback from "./../components/PosterFallback";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import StreamPlayerModal from "../components/StreamPlayerModal";
 import DownloadModal from "../components/DownloadModal";
 
 export default function MovieDetailPage() {
@@ -18,8 +17,13 @@ export default function MovieDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [streamMovie, setStreamMovie] = useState<Movie | null>(null);
   const [downloadMovie, setDownloadMovie] = useState<Movie | null>(null);
+
+  const [selectedSeason, setSelectedSeason] = useState(1);
+  const [episodes, setEpisodes] = useState<TvEpisode[]>([]);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+
+  const isTv = detail?.mediaType === "tv";
 
   useEffect(() => {
     if (!movieId) return;
@@ -46,6 +50,17 @@ export default function MovieDetailPage() {
       isMounted = false;
     };
   }, [movieId]);
+
+  useEffect(() => {
+    if (!isTv || !detail?.tmdbId) return;
+    setEpisodesLoading(true);
+    fetchTvSeasonEpisodes(detail.tmdbId, selectedSeason)
+      .then((data) => {
+        setEpisodes(data);
+        setEpisodesLoading(false);
+      })
+      .catch(() => setEpisodesLoading(false));
+  }, [isTv, detail?.tmdbId, selectedSeason]);
 
   if (loading) {
     return (
@@ -147,7 +162,10 @@ export default function MovieDetailPage() {
 
             <div className="flex flex-wrap items-center gap-3 pt-4">
               <button
-                onClick={() => setStreamMovie(movieObj)}
+                onClick={() => {
+                  const params = isTv ? `?season=${selectedSeason}&episode=1` : "";
+                  navigate(`/watch/${detail.id}${params}`);
+                }}
                 className="px-6 py-3 bg-imdb hover:bg-imdb-hover text-black font-extrabold text-xs rounded-xl flex items-center gap-2 transition-all shadow-lg cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-black" />
@@ -165,6 +183,86 @@ export default function MovieDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* TV Series Seasons & Episodes Explorer */}
+      {isTv && (
+        <div className="bg-[#0c0c0f] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-4">
+            <div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Tv className="w-5 h-5 text-imdb" />
+                <span>Episodes & Seasons</span>
+              </h3>
+              <p className="text-xs text-gray-400 font-mono mt-1">Select any episode to begin streaming</p>
+            </div>
+
+            {detail.seasons && detail.seasons.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto max-w-full pb-1">
+                {detail.seasons.map((s) => (
+                  <button
+                    key={s.seasonNumber}
+                    onClick={() => setSelectedSeason(s.seasonNumber)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-mono font-medium transition-all cursor-pointer ${
+                      selectedSeason === s.seasonNumber
+                        ? "bg-imdb text-black font-bold shadow-md"
+                        : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Season {s.seasonNumber}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {episodesLoading ? (
+            <div className="py-12 flex justify-center items-center gap-2 text-gray-400 text-xs font-mono">
+              <Loader2 className="w-5 h-5 animate-spin text-imdb" />
+              <span>Loading Season {selectedSeason} episodes...</span>
+            </div>
+          ) : episodes.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {episodes.map((ep) => (
+                <div
+                  key={ep.id}
+                  onClick={() => {
+                    navigate(`/watch/${detail.id}?season=${selectedSeason}&episode=${ep.episodeNumber}`);
+                  }}
+                  className="group p-4 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-imdb/40 rounded-2xl transition-all cursor-pointer flex flex-col justify-between space-y-3"
+                >
+                  <div className="aspect-video w-full bg-black/60 rounded-xl overflow-hidden relative flex items-center justify-center">
+                    {ep.stillPath ? (
+                      <img src={ep.stillPath} alt={ep.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <Tv className="w-8 h-8 text-gray-600" />
+                    )}
+                    <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                      <div className="w-10 h-10 rounded-full bg-imdb/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                        <Play className="w-4 h-4 text-black fill-black ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-imdb font-mono font-bold block">
+                      SEASON {selectedSeason} • EPISODE {ep.episodeNumber}
+                    </span>
+                    <h4 className="text-sm font-bold text-white group-hover:text-imdb transition-colors truncate mt-1">
+                      {ep.name}
+                    </h4>
+                    <p className="text-xs text-gray-400 line-clamp-2 mt-1 font-light leading-relaxed">
+                      {ep.overview}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 font-mono py-6 text-center">
+              No episode listings available for this season.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Details breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -185,17 +283,15 @@ export default function MovieDetailPage() {
         </div>
       </div>
 
-      {/* Modals for Stream and Download */}
-      {streamMovie && (
-        <StreamPlayerModal movie={streamMovie} onClose={() => setStreamMovie(null)} />
-      )}
+      {/* Download Modal */}
       {downloadMovie && (
         <DownloadModal
           movie={downloadMovie}
           onClose={() => setDownloadMovie(null)}
           onStream={(movie) => {
             setDownloadMovie(null);
-            setStreamMovie(movie);
+            const params = movie.mediaType === "tv" ? `?season=${selectedSeason}&episode=1` : "";
+            navigate(`/watch/${movie.id}${params}`);
           }}
         />
       )}

@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    envPrefix: ['VITE_', 'TMDB_', 'GEMINI_'],
+    envPrefix: ['VITE_', 'TMDB_'],
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

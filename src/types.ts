@@ -1,3 +1,5 @@
+export type MediaType = "movie" | "tv";
+
 export interface Movie {
   id: string;
   tmdbId?: string;
@@ -17,6 +19,45 @@ export interface Movie {
   awards?: string;
   videoUrl?: string;
   reason?: string; // Present for AI recommendations
+  mediaType?: MediaType;
+  totalSeasons?: number;
+  totalEpisodes?: number;
+}
+
+export interface TvEpisode {
+  id: number;
+  name: string;
+  overview: string;
+  episodeNumber: number;
+  seasonNumber: number;
+  stillPath: string;
+  airDate: string;
+  voteAverage: number;
+}
+
+export interface TvSeasonDetail {
+  seasonNumber: number;
+  name: string;
+  overview: string;
+  posterPath: string;
+  episodes: TvEpisode[];
+}
+
+export interface PlaybackProgress {
+  id: string;
+  tmdbId?: string;
+  imdbId?: string;
+  mediaType: MediaType;
+  title: string;
+  poster: string;
+  backdrop: string;
+  currentTime: number;
+  duration: number;
+  percentage: number;
+  season?: number;
+  episode?: number;
+  episodeTitle?: string;
+  updatedAt: number;
 }
 
 export interface VibeScore {
@@ -34,4 +75,5 @@ export interface MovieDetail extends Movie {
     visual: VibeScore;
     pacing: VibeScore;
   };
+  seasons?: TvSeasonDetail[];
 }

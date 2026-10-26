@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Movie, MovieDetail } from "../types";
-import { X, Star, Calendar, Clock, Trophy, Lightbulb, Sparkles, AlertCircle, ExternalLink, Activity, Film, Play, Download } from "lucide-react";
+import { Movie, MovieDetail, TvEpisode } from "../types";
+import { X, Star, Calendar, Clock, Trophy, Lightbulb, Sparkles, AlertCircle, ExternalLink, Activity, Film, Play, Download, Tv, Loader2 } from "lucide-react";
 import PosterFallback from "./PosterFallback";
-import { fetchMovieDetails } from "../services/tmdb";
+import { fetchMovieDetails, fetchTvSeasonEpisodes } from "../services/tmdb";
 import { motion, AnimatePresence } from "motion/react";
 
 interface MovieDetailModalProps {
   movie: Movie;
   onClose: () => void;
-  onStream?: (movie: Movie) => void;
+  onStream?: (movie: Movie, season?: number, episode?: number) => void;
   onDownloadMp4?: (movie: Movie) => void;
 }
 
@@ -25,6 +25,29 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
+
+  const [selectedSeason, setSelectedSeason] = useState(1);
+  const [episodes, setEpisodes] = useState<TvEpisode[]>([]);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
+
+  const isTv = detail?.mediaType === "tv" || movie.mediaType === "tv";
+
+  useEffect(() => {
+    if (!isTv) return;
+    const tvId = detail?.tmdbId || movie.tmdbId || movie.id;
+    if (!tvId) return;
+
+    setEpisodesLoading(true);
+    fetchTvSeasonEpisodes(tvId, selectedSeason)
+      .then((data) => {
+        setEpisodes(data);
+        setEpisodesLoading(false);
+      })
+      .catch((err) => {
+        console.warn("Episodes load error:", err);
+        setEpisodesLoading(false);
+      });
+  }, [isTv, detail?.tmdbId, movie.tmdbId, movie.id, selectedSeason]);
 
   // Cycling reassuring load messages
   useEffect(() => {
@@ -315,6 +338,78 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
 
                 {/* Right Column (Analysis & Trivia Column) */}
                 <div className="lg:col-span-8 space-y-6">
+                  {/* TV Series Seasons & Episodes Explorer */}
+                  {isTv && (
+                    <div className="bg-[#121214] border border-white/5 rounded-2xl p-5 space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/5 pb-3">
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          <Tv className="w-4 h-4 text-imdb" />
+                          <span>Episodes & Seasons</span>
+                        </h4>
+                        {detail.seasons && detail.seasons.length > 0 && (
+                          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1">
+                            {detail.seasons.map((s) => (
+                              <button
+                                key={s.seasonNumber}
+                                onClick={() => setSelectedSeason(s.seasonNumber)}
+                                className={`px-3 py-1 rounded-full text-xs font-mono font-medium transition-all cursor-pointer ${
+                                  selectedSeason === s.seasonNumber
+                                    ? "bg-imdb text-black font-bold shadow-md"
+                                    : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
+                                }`}
+                              >
+                                Season {s.seasonNumber}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {episodesLoading ? (
+                        <div className="py-8 flex justify-center items-center gap-2 text-gray-400 text-xs font-mono">
+                          <Loader2 className="w-4 h-4 animate-spin text-imdb" />
+                          <span>Loading Season {selectedSeason} episodes...</span>
+                        </div>
+                      ) : episodes.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[340px] overflow-y-auto pr-1">
+                          {episodes.map((ep) => (
+                            <div
+                              key={ep.id}
+                              onClick={() => onStream && onStream(movie, selectedSeason, ep.episodeNumber)}
+                              className="group p-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-imdb/40 rounded-xl transition-all cursor-pointer flex gap-3 items-center"
+                            >
+                              <div className="w-20 h-14 bg-black/60 rounded-lg overflow-hidden shrink-0 relative flex items-center justify-center">
+                                {ep.stillPath ? (
+                                  <img src={ep.stillPath} alt={ep.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Tv className="w-6 h-6 text-gray-600" />
+                                )}
+                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                                  <Play className="w-4 h-4 text-white fill-white opacity-80 group-hover:scale-110 transition-transform" />
+                                </div>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="text-[10px] text-imdb font-mono font-bold block">
+                                  EP {ep.episodeNumber}
+                                </span>
+                                <h5 className="text-xs font-bold text-gray-200 group-hover:text-imdb truncate">
+                                  {ep.name}
+                                </h5>
+                                <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5 font-light">
+                                  {ep.overview}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 font-mono py-4 text-center">
+                          Select Season above to view available episodes.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Detailed Plot */}
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">Cinematic Exposition</h3>

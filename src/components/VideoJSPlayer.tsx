@@ -2,15 +2,34 @@ import React, { useEffect, useRef } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 
-interface VideoJSPlayerProps {
-  options: any;
-  onReady?: (player: any) => void;
-  onError?: (error: any) => void;
+export interface SubtitleTrack {
+  label: string;
+  src: string;
+  srcLang: string;
+  default?: boolean;
 }
 
-export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, onError }) => {
+interface VideoJSPlayerProps {
+  options: any;
+  initialTime?: number;
+  subtitles?: SubtitleTrack[];
+  onReady?: (player: any) => void;
+  onError?: (error: any) => void;
+  onTimeUpdate?: (currentTime: number, duration: number) => void;
+}
+
+export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({
+  options,
+  initialTime = 0,
+  subtitles = [],
+  onReady,
+  onError,
+  onTimeUpdate
+}) => {
   const videoRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<any>(null);
+  const lastReportedTime = useRef<number>(0);
+  const hasSeekedInitial = useRef<boolean>(false);
 
   useEffect(() => {
     // Make sure Video.js player is initialized only once
@@ -29,6 +48,14 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
       }
 
       const mergedOptions = {
+        playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+        controlBar: {
+          skipButtons: {
+            forward: 10,
+            backward: 10
+          },
+          subsCapsButton: true
+        },
         html5: {
           vhs: {
             overrideNative: true,
@@ -41,10 +68,56 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
       };
 
       const player = (playerRef.current = videojs(videoElement, mergedOptions, () => {
+        // Add subtitle tracks if available
+        if (subtitles && subtitles.length > 0) {
+          subtitles.forEach((sub) => {
+            player.addRemoteTextTrack(
+              {
+                kind: "subtitles",
+                label: sub.label,
+                srclang: sub.srcLang,
+                src: sub.src,
+                default: sub.default || false
+              },
+              false
+            );
+          });
+        }
+
         if (onReady) {
           onReady(player);
         }
       }));
+
+      // Seek to initial time once playback is ready
+      player.on("loadedmetadata", () => {
+        if (initialTime > 0 && !hasSeekedInitial.current) {
+          try {
+            player.currentTime(initialTime);
+            hasSeekedInitial.current = true;
+          } catch (e) {
+            console.warn("Could not seek to initial time:", e);
+          }
+        }
+      });
+
+      // Throttle time updates every 4 seconds to track playback progress
+      player.on("timeupdate", () => {
+        const current = player.currentTime();
+        const duration = player.duration();
+        if (onTimeUpdate && Math.abs(current - lastReportedTime.current) >= 4) {
+          lastReportedTime.current = current;
+          onTimeUpdate(current, duration || 0);
+        }
+      });
+
+      player.on("pause", () => {
+        const current = player.currentTime();
+        const duration = player.duration();
+        if (onTimeUpdate && current > 0) {
+          onTimeUpdate(current, duration || 0);
+        }
+      });
 
       player.on("error", () => {
         const err = player.error();
@@ -60,11 +133,12 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
       }
       if (options.sources) {
         try {
+          hasSeekedInitial.current = false;
           player.src(options.sources);
           player.load();
           if (options.autoplay) {
             player.play().catch(() => {
-              // Ignore browser autoplay restrictions
+              // Ignore autoplay restrictions
             });
           }
         } catch (e) {
@@ -80,6 +154,16 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
 
     return () => {
       if (player && !player.isDisposed()) {
+        // Record final position on exit
+        try {
+          const current = player.currentTime();
+          const duration = player.duration();
+          if (onTimeUpdate && current > 0) {
+            onTimeUpdate(current, duration || 0);
+          }
+        } catch (e) {
+          // ignore
+        }
         player.dispose();
         playerRef.current = null;
       }
@@ -88,7 +172,7 @@ export const VideoJSPlayer: React.FC<VideoJSPlayerProps> = ({ options, onReady, 
 
   return (
     <div data-vjs-player className="w-full h-full flex items-center justify-center bg-black overflow-hidden relative">
-      <div ref={videoRef} className="w-full h-full min-h-[300px]" />
+      <div ref={videoRef} className="w-full h-full min-h-[320px]" />
     </div>
   );
 };

@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Movie } from "./types";
-import MovieDetailModal from "./components/MovieDetailModal";
-import StreamPlayerModal from "./components/StreamPlayerModal";
-import DownloadModal from "./components/DownloadModal";
-import BrowsePage from "./pages/BrowsePage";
-import AIFinderPage from "./pages/AIFinderPage";
-import WatchlistPage from "./pages/WatchlistPage";
-import MovieDetailPage from "./pages/MovieDetailPage";
 import { Compass, Bookmark, Sparkles, Sun, Moon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+// Lazy-loaded routes and modals for optimized initial load
+const BrowsePage = lazy(() => import("./pages/BrowsePage"));
+const AIFinderPage = lazy(() => import("./pages/AIFinderPage"));
+const WatchlistPage = lazy(() => import("./pages/WatchlistPage"));
+const MovieDetailPage = lazy(() => import("./pages/MovieDetailPage"));
+const WatchPage = lazy(() => import("./pages/WatchPage"));
+
+const MovieDetailModal = lazy(() => import("./components/MovieDetailModal"));
+const StreamPlayerModal = lazy(() => import("./components/StreamPlayerModal"));
+const DownloadModal = lazy(() => import("./components/DownloadModal"));
+
+const PageFallback = () => (
+  <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
+    <div className="w-8 h-8 rounded-full border-2 border-imdb/20 border-t-imdb animate-spin" />
+    <span className="text-xs text-gray-500 font-mono tracking-widest uppercase">Loading BFlix...</span>
+  </div>
+);
 
 export default function App() {
   const { t, i18n } = useTranslation();
@@ -58,7 +69,31 @@ export default function App() {
   // Modal states for stream / download / details overlay
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
   const [streamMovie, setStreamMovie] = useState<Movie | null>(null);
+  const [streamSeason, setStreamSeason] = useState<number>(1);
+  const [streamEpisode, setStreamEpisode] = useState<number>(1);
+  const [streamInitialTime, setStreamInitialTime] = useState<number>(0);
   const [downloadModalMovie, setDownloadModalMovie] = useState<Movie | null>(null);
+
+  const handleStartStream = (
+    movie: Movie,
+    season: number = 1,
+    episode: number = 1,
+    initialTime: number = 0
+  ) => {
+    setSelectedMovie(null);
+    setDownloadModalMovie(null);
+    setStreamMovie(null);
+    const searchParams = new URLSearchParams();
+    if (movie.mediaType === "tv" || season > 1 || episode > 1) {
+      searchParams.set("season", season.toString());
+      searchParams.set("episode", episode.toString());
+    }
+    if (initialTime > 0) {
+      searchParams.set("t", Math.floor(initialTime).toString());
+    }
+    const queryString = searchParams.toString();
+    navigate(`/watch/${movie.id}${queryString ? `?${queryString}` : ""}`);
+  };
 
   // Load watchlist from LocalStorage on mount
   useEffect(() => {
@@ -240,88 +275,108 @@ export default function App() {
 
       {/* Main Container with Page Routes */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <BrowsePage
-                watchlist={watchlist}
-                onToggleWatchlist={handleToggleWatchlist}
-                onSelectMovie={setSelectedMovie}
-                onStreamMovie={setStreamMovie}
-                onDownloadMovie={setDownloadModalMovie}
-              />
-            }
-          />
-          <Route
-            path="/category/:categoryId"
-            element={
-              <BrowsePage
-                watchlist={watchlist}
-                onToggleWatchlist={handleToggleWatchlist}
-                onSelectMovie={setSelectedMovie}
-                onStreamMovie={setStreamMovie}
-                onDownloadMovie={setDownloadModalMovie}
-              />
-            }
-          />
-          <Route
-            path="/vibe-finder"
-            element={
-              <AIFinderPage
-                watchlist={watchlist}
-                onToggleWatchlist={handleToggleWatchlist}
-                onStreamMovie={setStreamMovie}
-                onDownloadMovie={setDownloadModalMovie}
-              />
-            }
-          />
-          <Route
-            path="/watchlist"
-            element={
-              <WatchlistPage
-                watchlist={watchlist}
-                onToggleWatchlist={handleToggleWatchlist}
-                onStreamMovie={setStreamMovie}
-                onDownloadMovie={setDownloadModalMovie}
-              />
-            }
-          />
-          <Route path="/movie/:movieId" element={<MovieDetailPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <BrowsePage
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  onSelectMovie={setSelectedMovie}
+                  onStreamMovie={handleStartStream}
+                  onDownloadMovie={setDownloadModalMovie}
+                />
+              }
+            />
+            <Route
+              path="/category/:categoryId"
+              element={
+                <BrowsePage
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  onSelectMovie={setSelectedMovie}
+                  onStreamMovie={handleStartStream}
+                  onDownloadMovie={setDownloadModalMovie}
+                />
+              }
+            />
+            <Route
+              path="/vibe-finder"
+              element={
+                <AIFinderPage
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  onStreamMovie={(m) => handleStartStream(m)}
+                  onDownloadMovie={setDownloadModalMovie}
+                />
+              }
+            />
+            <Route
+              path="/watchlist"
+              element={
+                <WatchlistPage
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  onStreamMovie={(m) => handleStartStream(m)}
+                  onDownloadMovie={setDownloadModalMovie}
+                />
+              }
+            />
+            <Route path="/movie/:movieId" element={<MovieDetailPage />} />
+            <Route
+              path="/watch/:movieId"
+              element={
+                <WatchPage
+                  watchlist={watchlist}
+                  onToggleWatchlist={handleToggleWatchlist}
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Global Modals */}
-      {selectedMovie && (
-        <MovieDetailModal
-          movie={selectedMovie}
-          onClose={() => setSelectedMovie(null)}
-          onStream={(movie) => {
-            setSelectedMovie(null);
-            setStreamMovie(movie);
-          }}
-          onDownloadMp4={(movie) => {
-            setSelectedMovie(null);
-            setDownloadModalMovie(movie);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedMovie && (
+          <MovieDetailModal
+            movie={selectedMovie}
+            onClose={() => setSelectedMovie(null)}
+            onStream={(movie, season, episode) => {
+              handleStartStream(movie, season || 1, episode || 1);
+            }}
+            onDownloadMp4={(movie) => {
+              setSelectedMovie(null);
+              setDownloadModalMovie(movie);
+            }}
+          />
+        )}
 
-      {streamMovie && (
-        <StreamPlayerModal movie={streamMovie} onClose={() => setStreamMovie(null)} />
-      )}
+        {streamMovie && (
+          <StreamPlayerModal
+            movie={streamMovie}
+            initialSeason={streamSeason}
+            initialEpisode={streamEpisode}
+            initialTime={streamInitialTime}
+            onClose={() => {
+              setStreamMovie(null);
+              setStreamInitialTime(0);
+            }}
+          />
+        )}
 
-      {downloadModalMovie && (
-        <DownloadModal
-          movie={downloadModalMovie}
-          onClose={() => setDownloadModalMovie(null)}
-          onStream={(movie) => {
-            setDownloadModalMovie(null);
-            setStreamMovie(movie);
-          }}
-        />
-      )}
+        {downloadModalMovie && (
+          <DownloadModal
+            movie={downloadModalMovie}
+            onClose={() => setDownloadModalMovie(null)}
+            onStream={(movie) => {
+              handleStartStream(movie);
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Footer credits */}
       <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-4 mt-12">

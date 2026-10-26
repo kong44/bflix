@@ -9,6 +9,7 @@ const resources = {
       tagline: "CINEMA STREAM",
       nav: {
         movies: "Movies",
+        tvShows: "TV Series",
         aiFinder: "AI Vibe Finder",
         watchlist: "Watchlist"
       },
@@ -19,8 +20,26 @@ const resources = {
         showDetails: "Show Details",
         director: "Dir:"
       },
+      continueWatching: {
+        title: "Continue Watching",
+        subtitle: "Pick up right where you left off",
+        resume: "Resume",
+        remove: "Remove",
+        clearAll: "Clear All",
+        progress: "{{percent}}% watched",
+        seasonEpisode: "S{{season}}:E{{episode}}"
+      },
+      tv: {
+        seasons: "Seasons",
+        episodes: "Episodes",
+        seasonNum: "Season {{season}}",
+        episodeNum: "Episode {{episode}}",
+        selectEpisode: "Select Episode",
+        airDate: "Air Date:",
+        allSeasons: "All Seasons"
+      },
       category: {
-        label: "Select Movie Category / Genre",
+        label: "Select Category / Genre",
         subLabel: "Filter catalog across curated categories",
         trending: "Trending Now",
         popular: "Popular Movies",
@@ -43,14 +62,15 @@ const resources = {
         scifi: "Sci-Fi",
         thriller: "Thriller",
         war: "War",
-        western: "Western"
+        western: "Western",
+        tvShows: "TV Shows & Series"
       },
       search: {
         placeholder: "Search titles...",
         button: "Search",
         reset: "Reset",
         resultsTitle: "Search Results",
-        categoryTitle: "{{category}} Movies",
+        categoryTitle: "{{category}}",
         resultsFound: "Found {{count}} results for \"{{query}}\"",
         pageStatus: "Page {{page}} of {{totalPages}} • Total {{totalResults}} titles available",
         noResultsTitle: "No search matches found.",
@@ -69,7 +89,8 @@ const resources = {
         findButton: "Find Movies with AI",
         curatedTitle: "AI Curated Picks",
         curatedSub: "Tailored exclusively to match your description.",
-        clear: "Clear Recommendations"
+        clear: "Clear Recommendations",
+        searching: "Analyzing cinematic vibes..."
       },
       watchlist: {
         title: "Personal Archive Watchlist",
@@ -92,6 +113,29 @@ const resources = {
         runtime: "Runtime",
         close: "Close"
       },
+      watch: {
+        returnToCatalog: "Back to Catalog",
+        nowStreaming: "Now Streaming",
+        serverSwitch: "Select Server",
+        nextEpisode: "Next Episode",
+        prevEpisode: "Prev Episode",
+        purePlayer: "Pure Video.js Player",
+        adShieldStrict: "Strict Shield Active",
+        adShieldBalanced: "Balanced Shield Active",
+        adShieldOff: "Ad Shield Disabled"
+      },
+      download: {
+        title: "Download Movie & Series",
+        inBrowserEngine: "In-Browser Multi-Threaded Engine",
+        fetchingManifest: "Fetching Stream Manifest...",
+        downloadingChunks: "Downloading Chunks",
+        stitching: "Stitching MP4...",
+        complete: "Download Ready & Saved",
+        pause: "Pause",
+        resume: "Resume",
+        cancel: "Cancel",
+        ffmpegOption: "Or Download via FFmpeg CLI"
+      },
       footer: {
         rights: "© BFlix Cinema. All rights reserved.",
         poweredBy: "Powered by"
@@ -108,6 +152,7 @@ const resources = {
       tagline: "ខ្សែភាពយន្តអនឡាញ",
       nav: {
         movies: "ភាពយន្ត",
+        tvShows: "រឿងភាគ (TV)",
         aiFinder: "ស្វែងរកភាពយន្ត AI",
         watchlist: "បញ្ជីទស្សនា"
       },
@@ -117,6 +162,24 @@ const resources = {
         downloadMp4: "ទាញយក MP4",
         showDetails: "មើលលម្អិត",
         director: "អ្នកដឹកនាំ:"
+      },
+      continueWatching: {
+        title: "ទស្សនាបន្ត",
+        subtitle: "បន្តទស្សនាពីកន្លែងដែលអ្នកបានផ្អាក",
+        resume: "បន្តទស្សនា",
+        remove: "លុបចេញ",
+        clearAll: "លុបទាំងអស់",
+        progress: "បានទស្សនា {{percent}}%",
+        seasonEpisode: "វគ្គ S{{season}}:E{{episode}}"
+      },
+      tv: {
+        seasons: "រដូវកាល",
+        episodes: "ភាគ",
+        seasonNum: "រដូវកាលទី {{season}}",
+        episodeNum: "ភាគទី {{episode}}",
+        selectEpisode: "ជ្រើសរើសភាគ",
+        airDate: "ថ្ងៃចាក់ផ្សាយ:",
+        allSeasons: "រដូវកាលទាំងអស់"
       },
       category: {
         label: "ជ្រើសរើសប្រភេទភាពយន្ត / ចានរ៍",
@@ -142,14 +205,15 @@ const resources = {
         scifi: "វិទ្យាសាស្ត្រ (Sci-Fi)",
         thriller: "រំភើបញាប់ញ័រ (Thriller)",
         war: "សង្គ្រាម (War)",
-        western: "បស្ចិមប្រទេស (Western)"
+        western: "បស្ចិមប្រទេស (Western)",
+        tvShows: "រឿងភាគទូរទស្សន៍"
       },
       search: {
         placeholder: "ស្វែងរកចំណងជើងភាពយន្ត...",
         button: "ស្វែងរក",
         reset: "កំណត់ឡើងវិញ",
         resultsTitle: "លទ្ធផលស្វែងរក",
-        categoryTitle: "ភាពយន្ត {{category}}",
+        categoryTitle: "{{category}}",
         resultsFound: "រកឃើញ {{count}} លទ្ធផលសម្រាប់ «{{query}}»",
         pageStatus: "ទំព័រ {{page}} នៃ {{totalPages}} • សរុប {{totalResults}} ចំណងជើង",
         noResultsTitle: "រកមិនឃើញភាពយន្តដែលត្រូវគ្នានោះទេ។",
@@ -168,7 +232,8 @@ const resources = {
         findButton: "ស្វែងរកភាពយន្តជាមួយ AI",
         curatedTitle: "ភាពយន្តដែល AI ជ្រើសរើសជូន",
         curatedSub: "តម្រូវជាពិសេសតាមការរៀបរាប់របស់អ្នក។",
-        clear: "សម្អាតការណែនាំ"
+        clear: "សម្អាតការណែនាំ",
+        searching: "កំពុងវិភាគបរិយាកាសភាពយន្ត..."
       },
       watchlist: {
         title: "បញ្ជីភាពយន្តដែលបានរក្សាទុក",
@@ -190,6 +255,29 @@ const resources = {
         rating: "ពិន្ទុ",
         runtime: "រយៈពេល",
         close: "បិទ"
+      },
+      watch: {
+        returnToCatalog: "ត្រឡប់ទៅកាតាឡុក",
+        nowStreaming: "កំពុងចាក់ផ្សាយ",
+        serverSwitch: "ជ្រើសរើសម៉ាស៊ីនបម្រើ (Server)",
+        nextEpisode: "ភាគបន្ទាប់",
+        prevEpisode: "ភាគមុន",
+        purePlayer: "កម្មវិធីចាក់ Video.js",
+        adShieldStrict: "ខែលការពារផ្ទាំងពាណិជ្ជកម្មតឹងរ៉ឹង",
+        adShieldBalanced: "ខែលការពារផ្ទាំងពាណិជ្ជកម្មកម្រិតមធ្យម",
+        adShieldOff: "បិទខែលការពារផ្ទាំងពាណិជ្ជកម្ម"
+      },
+      download: {
+        title: "ទាញយកភាពយន្ត និងរឿងភាគ",
+        inBrowserEngine: "ម៉ាស៊ីនទាញយកច្រើនខ្សែស្របក្នុង Browser",
+        fetchingManifest: "កំពុងទាញយកទិន្នន័យស្ទ្រីម...",
+        downloadingChunks: "កំពុងទាញយកផ្នែកវីដេអូ",
+        stitching: "កំពុងផ្គុំជាឯកសារ MP4...",
+        complete: "ទាញយករួចរាល់ និងបានរក្សាទុក",
+        pause: "ផ្អាក",
+        resume: "បន្ត",
+        cancel: "បោះបង់",
+        ffmpegOption: "ឬទាញយកតាមពាក្យបញ្ជា FFmpeg CLI"
       },
       footer: {
         rights: "© BFlix Cinema. រក្សាសិទ្ធិគ្រប់យ៉ាង។",

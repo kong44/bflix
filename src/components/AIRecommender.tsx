@@ -90,7 +90,7 @@ export default function AIRecommender({ onRecommendationsFound, onClear }: AIRec
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Consulting Gemini...</span>
+                <span>{t("ai.searching") || "Analyzing cinematic vibes..."}</span>
               </>
             ) : (
               <>

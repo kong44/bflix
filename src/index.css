@@ -207,7 +207,7 @@
   border-color: rgba(0, 0, 0, 0.1) !important;
 }
 
-.light .bg-[#070709] img {
+.light .bg-\[\#070709\] img {
   opacity: 0.15 !important;
 }
 

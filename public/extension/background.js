@@ -20,6 +20,11 @@ function saveDownloadState(targetUrl, streamUrl, info) {
   });
 }
 
+// Extension install & rules activation
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("[BFlix Extension] Ad Blocker rules and M3U8 sniffer active.");
+});
+
 // Background Download Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.type) return;

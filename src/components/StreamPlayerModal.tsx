@@ -7,6 +7,7 @@ import {
   Maximize2, 
   ExternalLink, 
   ShieldCheck, 
+  ShieldOff, 
   Shield,
   Film, 
   Tv, 
@@ -20,9 +21,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import VideoJSPlayer from "./VideoJSPlayer";
+import { getPlaybackProgress, savePlaybackProgress } from "../utils/playbackStorage";
 
 interface StreamPlayerModalProps {
   movie: Movie;
+  initialSeason?: number;
+  initialEpisode?: number;
+  initialTime?: number;
   onClose: () => void;
   onDownloadMp4?: (movie: Movie) => void;
 }
@@ -39,6 +44,13 @@ const TMDB_API_KEY = "15d2fb6030da5f74303f47bf9d0e0a7e";
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 const PROVIDERS: StreamProvider[] = [
+  {
+    id: "vidsrc_me",
+    name: "VidSrc.me",
+    badge: "DEFAULT HD",
+    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.me/embed/movie?tmdb=${tmdb || id}${imdb ? `&imdb=${imdb}` : ""}`,
+    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
+  },
   {
     id: "vidsrc_cc",
     name: "VidSrc.cc",
@@ -89,13 +101,6 @@ const PROVIDERS: StreamProvider[] = [
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.vip/embed/tv/${tmdb || id || imdb}/${s}/${e}`
   },
   {
-    id: "vidsrc_me",
-    name: "VidSrc.me",
-    badge: "SERVER 6",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.me/embed/movie?tmdb=${tmdb || id}${imdb ? `&imdb=${imdb}` : ""}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
-  },
-  {
     id: "vidsrc_xyz",
     name: "VidSrc.xyz",
     badge: "SERVER 7",
@@ -139,16 +144,95 @@ const PROVIDERS: StreamProvider[] = [
   }
 ];
 
-export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: StreamPlayerModalProps) {
-  const [selectedProviderIndex, setSelectedProviderIndex] = useState(0);
-  const selectedProvider = PROVIDERS[selectedProviderIndex];
+export default function StreamPlayerModal({
+  movie,
+  initialSeason,
+  initialEpisode,
+  initialTime,
+  onClose,
+  onDownloadMp4
+}: StreamPlayerModalProps) {
+  const savedProgress = getPlaybackProgress(movie.id);
+  // Default to VidSrc.me (index 0) with localStorage memory
+  const [selectedProviderIndex, setSelectedProviderIndex] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("bflix_stream_server");
+      if (saved) {
+        const idx = PROVIDERS.findIndex((p) => p.id === saved);
+        if (idx >= 0) return idx;
+      }
+    } catch (e) {}
+    return 0; // VidSrc.me
+  });
+  const selectedProvider = PROVIDERS[selectedProviderIndex] || PROVIDERS[0];
 
   const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
-  const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
-  const [season, setSeason] = useState(1);
-  const [episode, setEpisode] = useState(1);
+  const [mediaType, setMediaType] = useState<"movie" | "tv">(
+    movie.mediaType === "tv" ? "tv" : (savedProgress?.mediaType || "movie")
+  );
+  const [season, setSeason] = useState<number>(
+    initialSeason || savedProgress?.season || 1
+  );
+  const [episode, setEpisode] = useState<number>(
+    initialEpisode || savedProgress?.episode || 1
+  );
+  const [initialSeekTime] = useState<number>(
+    initialTime || savedProgress?.currentTime || 0
+  );
   const [iframeKey, setIframeKey] = useState(0);
-  const [sandboxMode, setSandboxMode] = useState<"off" | "compat" | "strict">("off");
+  // Default to "off" with optional localStorage memory
+  const [sandboxMode, setSandboxMode] = useState<"strict" | "compat" | "off">(() => {
+    try {
+      const saved = localStorage.getItem("bflix_ad_shield_mode");
+      if (saved === "strict" || saved === "compat" || saved === "off") {
+        return saved;
+      }
+    } catch (e) {}
+    return "off";
+  });
+
+  // Ad Blocker: Window-Level Popup Defeater Trap
+  useEffect(() => {
+    if (sandboxMode === "off") return;
+    const originalOpen = window.open;
+    // Intercept any popup or redirect attempts
+    (window as any).open = function (url?: string | URL, target?: string, features?: string) {
+      console.warn("[BFlix Ad Shield] Blocked unauthorized ad popup/tab to:", url);
+      // Return a mock window object so embed player code expecting a window does not throw null errors
+      return {
+        closed: false,
+        close: () => {},
+        focus: () => {},
+        blur: () => {},
+        postMessage: () => {},
+        document: {},
+        location: { href: "" }
+      };
+    };
+
+    return () => {
+      window.open = originalOpen;
+    };
+  }, [sandboxMode]);
+
+  // Track playback history
+  useEffect(() => {
+    savePlaybackProgress({
+      id: movie.id,
+      tmdbId: movie.tmdbId,
+      imdbId: movie.imdbId,
+      mediaType,
+      title: movie.title,
+      poster: movie.poster,
+      backdrop: movie.backdrop,
+      currentTime: initialSeekTime,
+      duration: savedProgress?.duration || 0,
+      percentage: savedProgress?.percentage || 5,
+      season: mediaType === "tv" ? season : undefined,
+      episode: mediaType === "tv" ? episode : undefined,
+      updatedAt: Date.now()
+    });
+  }, [movie.id, mediaType, season, episode]);
 
   // Multi-Format Stream MIME Type Detector (.m3u8, .mp4, .ts, .mpd, .webm, .mkv)
   const detectStreamType = (url: string): string => {
@@ -528,28 +612,38 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
 
               {playerEngine === "embed" && (
                 <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl">
-                  <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "off" ? "text-emerald-400" : sandboxMode === "compat" ? "text-amber-400" : "text-cyan-400"}`} />
-                  <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Anti-Block:</span>
+                  {sandboxMode === "off" ? (
+                    <ShieldOff className="w-3.5 h-3.5 ml-1.5 text-rose-400" />
+                  ) : (
+                    <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "strict" ? "text-emerald-400" : "text-amber-400"}`} />
+                  )}
+                  <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Ad Shield:</span>
                   <select
                     value={sandboxMode}
-                    onChange={(e) => setSandboxMode(e.target.value as "off" | "compat" | "strict")}
+                    onChange={(e) => {
+                      const mode = e.target.value as "strict" | "compat" | "off";
+                      setSandboxMode(mode);
+                      try {
+                        localStorage.setItem("bflix_ad_shield_mode", mode);
+                      } catch (err) {}
+                    }}
                     className={`bg-transparent text-xs font-mono font-bold focus:outline-none cursor-pointer pr-1 py-0.5 rounded ${
-                      sandboxMode === "off"
+                      sandboxMode === "strict"
                         ? "text-emerald-400 font-extrabold"
                         : sandboxMode === "compat"
                         ? "text-amber-400 font-extrabold"
-                        : "text-cyan-400 font-extrabold"
+                        : "text-rose-400 font-extrabold"
                     }`}
-                    title="Anti-Block Mode (No Sandbox Attribute) prevents embed video providers from detecting sandbox restrictions and blocking video playback."
+                    title="Control Ad & Popup Blocking for embed iframe servers"
                   >
-                    <option value="off" className="bg-[#121215] text-emerald-400 font-bold">
-                      Anti-Block Mode (Recommended - 100% Video Playback)
+                    <option value="off" className="bg-[#121215] text-rose-400 font-bold">
+                      ⚠️ Shield Off (Unrestricted - Ads Allowed)
+                    </option>
+                    <option value="strict" className="bg-[#121215] text-emerald-400 font-bold">
+                      🛡️ Strict Ad Shield (Active - Popups Blocked)
                     </option>
                     <option value="compat" className="bg-[#121215] text-amber-400 font-bold">
-                      Permissive Sandbox (May block some servers)
-                    </option>
-                    <option value="strict" className="bg-[#121215] text-cyan-400 font-bold">
-                      Strict Sandbox (Ad Block - May block video)
+                      🛡️ Balanced Shield (No Redirects)
                     </option>
                   </select>
                 </div>
@@ -567,7 +661,15 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                   <select
                     id="server-select"
                     value={selectedProviderIndex}
-                    onChange={(e) => setSelectedProviderIndex(Number(e.target.value))}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value);
+                      setSelectedProviderIndex(idx);
+                      try {
+                        if (PROVIDERS[idx]) {
+                          localStorage.setItem("bflix_stream_server", PROVIDERS[idx].id);
+                        }
+                      } catch (err) {}
+                    }}
                     className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-9 appearance-none shadow-md hover:bg-[#202026] transition-all"
                   >
                     {PROVIDERS.map((prov, index) => (
@@ -728,13 +830,17 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
           >
             {playerEngine === "embed" && (
               <div className="absolute top-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold backdrop-blur-md bg-black/75 border border-white/10 shadow-lg">
-                <ShieldCheck className={`w-3.5 h-3.5 ${sandboxMode === "off" ? "text-emerald-400" : sandboxMode === "compat" ? "text-amber-400" : "text-cyan-400"}`} />
-                <span className={sandboxMode === "off" ? "text-emerald-300" : sandboxMode === "compat" ? "text-amber-300" : "text-cyan-300"}>
-                  {sandboxMode === "off"
-                    ? "ANTI-BLOCK MODE ACTIVE (NO SANDBOX ATTR - 100% COMPATIBLE)"
+                {sandboxMode === "off" ? (
+                  <ShieldOff className="w-3.5 h-3.5 text-rose-400" />
+                ) : (
+                  <ShieldCheck className={`w-3.5 h-3.5 ${sandboxMode === "strict" ? "text-emerald-400" : "text-amber-400"}`} />
+                )}
+                <span className={sandboxMode === "strict" ? "text-emerald-300" : sandboxMode === "compat" ? "text-amber-300" : "text-rose-300"}>
+                  {sandboxMode === "strict"
+                    ? "SHIELD: STRICT (ALL ADS & POPUPS BLOCKED)"
                     : sandboxMode === "compat"
-                    ? "SANDBOX: PERMISSIVE (SOME SERVERS MAY BLOCK)"
-                    : "SANDBOX: STRICT (ALL POPUPS BLOCKED)"}
+                    ? "SHIELD: BALANCED (NO ESCAPING POPUPS)"
+                    : "SHIELD: OFF (UNRESTRICTED ADS ALLOWED)"}
                 </span>
               </div>
             )}
@@ -742,12 +848,31 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
             {playerEngine === "videojs" ? (
               <VideoJSPlayer
                 key={activeM3u8Url}
+                initialTime={initialSeekTime}
+                onTimeUpdate={(current, duration) => {
+                  const pct = duration > 0 ? Math.round((current / duration) * 100) : 0;
+                  savePlaybackProgress({
+                    id: movie.id,
+                    tmdbId: movie.tmdbId,
+                    imdbId: movie.imdbId,
+                    mediaType,
+                    title: movie.title,
+                    poster: movie.poster,
+                    backdrop: movie.backdrop,
+                    currentTime: Math.floor(current),
+                    duration: Math.floor(duration),
+                    percentage: pct,
+                    season: mediaType === "tv" ? season : undefined,
+                    episode: mediaType === "tv" ? episode : undefined,
+                    updatedAt: Date.now()
+                  });
+                }}
                 options={{
                   autoplay: true,
                   controls: true,
                   responsive: true,
                   fluid: true,
-                  playbackRates: [0.5, 1, 1.25, 1.5, 2],
+                  playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
                   sources: [
                     {
                       src: activeM3u8Url,
@@ -770,11 +895,11 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; fullscreen"
                 referrerPolicy="no-referrer"
                 sandbox={
-                  sandboxMode === "off"
-                    ? undefined
+                  sandboxMode === "strict"
+                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads"
                     : sandboxMode === "compat"
-                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-storage-access-by-user-activation"
-                    : "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads"
+                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-popups"
+                    : undefined
                 }
               />
             )}
@@ -788,13 +913,13 @@ export default function StreamPlayerModal({ movie, onClose, onDownloadMp4 }: Str
                 <span>Connected to {selectedProvider.name}</span>
                 {playerEngine === "embed" && (
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                    sandboxMode === "off"
+                    sandboxMode === "strict"
                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                       : sandboxMode === "compat"
                       ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                      : "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                      : "bg-rose-500/10 text-rose-400 border-rose-500/30"
                   }`}>
-                    {sandboxMode === "off" ? "Anti-Block (No Sandbox Attr)" : sandboxMode === "compat" ? "Permissive Sandbox" : "Strict Sandbox"}
+                    {sandboxMode === "strict" ? "Strict Ad Shield (Active)" : sandboxMode === "compat" ? "Balanced Shield" : "Shield Off (All Ads Allowed)"}
                   </span>
                 )}
               </div>

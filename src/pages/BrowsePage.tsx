@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { Movie } from "../types";
+import { Movie, PlaybackProgress } from "../types";
 import MovieCard from "../components/MovieCard";
 import MovieCardSkeleton from "../components/MovieCardSkeleton";
 import { 
   fetchMoviesByCategory, 
-  searchMoviesWithPagination, 
-  CATEGORIES 
+  fetchTvShowsByCategory,
+  searchMediaWithPagination, 
+  MOVIE_CATEGORIES,
+  TV_CATEGORIES
 } from "../services/tmdb";
+import { getContinueWatchingList, removePlaybackProgress } from "../utils/playbackStorage";
 import { 
   Star, 
   Play, 
@@ -18,7 +21,11 @@ import {
   Search, 
   Loader2, 
   Grid, 
-  Compass 
+  Compass,
+  Film,
+  Tv,
+  Clock,
+  X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -27,7 +34,7 @@ interface BrowsePageProps {
   watchlist: Movie[];
   onToggleWatchlist: (movie: Movie, e: React.MouseEvent) => void;
   onSelectMovie: (movie: Movie) => void;
-  onStreamMovie: (movie: Movie) => void;
+  onStreamMovie: (movie: Movie, season?: number, episode?: number, initialTime?: number) => void;
   onDownloadMovie: (movie: Movie) => void;
 }
 
@@ -43,7 +50,10 @@ export default function BrowsePage({
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const selectedCategory = categoryId || "trending";
+  const [mediaType, setMediaType] = useState<"movie" | "tv">("movie");
+  const activeCategories = mediaType === "movie" ? MOVIE_CATEGORIES : TV_CATEGORIES;
+
+  const selectedCategory = categoryId || (mediaType === "movie" ? "trending" : "trending_tv");
   const searchFromUrl = searchParams.get("search") || "";
   const pageFromUrl = parseInt(searchParams.get("page") || "1", 10);
 
@@ -60,6 +70,17 @@ export default function BrowsePage({
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [heroIndex, setHeroIndex] = useState(0);
+
+  // Continue Watching state
+  const [continueWatching, setContinueWatching] = useState<PlaybackProgress[]>([]);
+
+  const refreshContinueWatching = () => {
+    setContinueWatching(getContinueWatchingList());
+  };
+
+  useEffect(() => {
+    refreshContinueWatching();
+  }, []);
 
   // Sync state with URL params
   useEffect(() => {
@@ -79,7 +100,7 @@ export default function BrowsePage({
     setSearchLoading(true);
     setSearchError(null);
 
-    searchMoviesWithPagination(searchFromUrl, pageFromUrl)
+    searchMediaWithPagination(searchFromUrl, pageFromUrl, mediaType)
       .then((res) => {
         if (isMounted) {
           if (res.movies && res.movies.length > 0) {
@@ -88,7 +109,7 @@ export default function BrowsePage({
             setTotalResults(res.totalResults);
           } else {
             setSearchResults([]);
-            setSearchError(`No movies found matching "${searchFromUrl}".`);
+            setSearchError(`No titles found matching "${searchFromUrl}".`);
           }
           setSearchLoading(false);
         }
@@ -104,16 +125,20 @@ export default function BrowsePage({
     return () => {
       isMounted = false;
     };
-  }, [searchFromUrl, pageFromUrl]);
+  }, [searchFromUrl, pageFromUrl, mediaType]);
 
-  // Load movies by category if no active search
+  // Load movies or TV shows by category if no active search
   useEffect(() => {
     if (searchFromUrl) return;
 
     let isMounted = true;
     setCuratedLoading(true);
 
-    fetchMoviesByCategory(selectedCategory, currentPage)
+    const fetcher = mediaType === "tv"
+      ? fetchTvShowsByCategory(selectedCategory, currentPage)
+      : fetchMoviesByCategory(selectedCategory, currentPage);
+
+    fetcher
       .then((res) => {
         if (isMounted) {
           setCuratedMovies(res.movies);
@@ -123,14 +148,14 @@ export default function BrowsePage({
         }
       })
       .catch((err) => {
-        console.error("Failed to load category movies:", err);
+        console.error("Failed to load category items:", err);
         if (isMounted) setCuratedLoading(false);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [selectedCategory, currentPage, searchFromUrl]);
+  }, [selectedCategory, currentPage, searchFromUrl, mediaType]);
 
   // Rotating Hero slides
   useEffect(() => {
@@ -143,6 +168,14 @@ export default function BrowsePage({
 
   const handleSelectCategory = (catId: string) => {
     navigate(`/category/${catId}`);
+  };
+
+  const handleToggleMediaType = (type: "movie" | "tv") => {
+    if (type === mediaType) return;
+    setMediaType(type);
+    setCurrentPage(1);
+    const defaultCat = type === "movie" ? "trending" : "trending_tv";
+    navigate(`/category/${defaultCat}`);
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -174,63 +207,39 @@ export default function BrowsePage({
   const activeHero = curatedMovies[heroIndex] || curatedMovies[0];
 
   const getCategoryLabel = (catId: string) => {
-    const keyMap: Record<string, string> = {
-      trending: "category.trending",
-      popular: "category.popular",
-      top_rated: "category.topRated",
-      now_playing: "category.trending",
-      upcoming: "category.upcoming",
-      action: "category.action",
-      "sci-fi": "category.scifi",
-      comedy: "category.comedy",
-      drama: "category.drama",
-      horror: "category.horror",
-      animation: "category.animation",
-      thriller: "category.thriller",
-      adventure: "category.adventure",
-      romance: "category.romance",
-      crime: "category.crime",
-      fantasy: "category.fantasy",
-      mystery: "category.mystery"
-    };
-    const key = keyMap[catId];
-    return key ? t(key) : CATEGORIES.find((c) => c.id === catId)?.name || catId;
+    const found = activeCategories.find((c) => c.id === catId);
+    return found ? found.name : catId;
   };
 
   const renderPageNumbers = () => {
     const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
+    const maxButtons = 5;
+
+    if (totalPages <= maxButtons) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
-      pages.push(1);
-      let start = Math.max(2, currentPage - 1);
-      let end = Math.min(totalPages - 1, currentPage + 1);
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, currentPage + 2);
 
       if (currentPage <= 3) {
-        end = 4;
+        start = 1;
+        end = 5;
       } else if (currentPage >= totalPages - 2) {
-        start = totalPages - 3;
+        start = totalPages - 4;
+        end = totalPages;
       }
 
-      if (start > 2) pages.push("...");
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (end < totalPages - 1) pages.push("...");
-      pages.push(totalPages);
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
     }
 
     return pages.map((p, idx) => {
-      if (typeof p === "string") {
-        return (
-          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-xs text-gray-500 font-mono select-none">
-            ...
-          </span>
-        );
-      }
       const isActive = p === currentPage;
       return (
         <button
-          key={p}
-          onClick={() => handlePageChange(p)}
+          key={idx}
+          onClick={() => handlePageChange(Number(p))}
           className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             isActive
               ? "bg-imdb text-black shadow-md shadow-amber-500/10"
@@ -287,6 +296,11 @@ export default function BrowsePage({
                     <Star className="w-4 h-4 fill-imdb stroke-imdb mr-1" />
                     <span>{activeHero.imdbRating}</span>
                   </div>
+                  {activeHero.mediaType === "tv" && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-cyan-300 font-bold border border-cyan-400/20">
+                      TV SERIES
+                    </span>
+                  )}
                 </div>
 
                 <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase leading-none drop-shadow-lg">
@@ -300,7 +314,7 @@ export default function BrowsePage({
                 <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-400 py-1">
                   <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.year}</span>
                   <span>•</span>
-                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{t("hero.director")} {activeHero.director}</span>
+                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.director}</span>
                   <span>•</span>
                   <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.runtime}</span>
                 </div>
@@ -347,23 +361,138 @@ export default function BrowsePage({
         </section>
       )}
 
+      {/* Continue Watching Carousel */}
+      {continueWatching.length > 0 && searchResults === null && (
+        <section className="space-y-4 pt-2 pb-2">
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-imdb" />
+              <h3 className="text-base font-bold text-white tracking-tight uppercase">
+                {t("continueWatching.title")}
+              </h3>
+            </div>
+            <span className="text-[11px] text-gray-500 font-mono">
+              {t("continueWatching.subtitle")}
+            </span>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+            {continueWatching.map((item) => (
+              <div
+                key={item.id}
+                className="group relative min-w-[240px] sm:min-w-[280px] max-w-[280px] bg-[#0c0c0f] border border-white/10 hover:border-imdb/50 rounded-2xl overflow-hidden shadow-xl transition-all flex flex-col shrink-0"
+              >
+                {/* Thumbnail with progress overlay */}
+                <div className="relative aspect-video w-full bg-black/60 overflow-hidden">
+                  <img
+                    src={item.backdrop || item.poster}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+
+                  {/* Season/Episode Badge */}
+                  {item.mediaType === "tv" && item.season && item.episode && (
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 border border-white/10 text-[10px] font-mono text-imdb font-bold">
+                      S{item.season}:E{item.episode}
+                    </div>
+                  )}
+
+                  {/* Remove button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removePlaybackProgress(item.id);
+                      setContinueWatching((prev) => prev.filter((p) => p.id !== item.id));
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-red-500/80 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                    title={t("continueWatching.remove")}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Play Resume Button */}
+                  <button
+                    onClick={() => {
+                      const movieObj: Movie = {
+                        id: item.id,
+                        tmdbId: item.tmdbId,
+                        imdbId: item.imdbId,
+                        title: item.title,
+                        year: "",
+                        genres: [item.mediaType === "tv" ? "TV Series" : "Cinema"],
+                        director: "",
+                        actors: [],
+                        plot: "",
+                        imdbRating: "8.0",
+                        poster: item.poster,
+                        backdrop: item.backdrop,
+                        mediaType: item.mediaType
+                      };
+                      onStreamMovie(movieObj, item.season || 1, item.episode || 1, item.currentTime);
+                    }}
+                    className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-imdb flex items-center justify-center text-black shadow-lg opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all cursor-pointer"
+                    title={t("continueWatching.resume")}
+                  >
+                    <Play className="w-4 h-4 fill-black ml-0.5" />
+                  </button>
+
+                  {/* Progress bar */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/60">
+                    <div
+                      className="h-full bg-imdb transition-all"
+                      style={{ width: `${Math.max(5, Math.min(100, item.percentage || 10))}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Card Title & Meta */}
+                <div className="p-3 flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-bold text-white group-hover:text-imdb truncate">
+                      {item.title}
+                    </h4>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">
+                      {item.percentage > 0 ? `${item.percentage}% watched` : "Recently played"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Catalog & Filter Section */}
       <section id="catalog-section" className="space-y-6">
-        {/* Category Pill Navigation */}
+        {/* Media Type Switcher & Category Navigation */}
         <div className="liquid-glass rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-imdb/20 text-imdb border border-imdb/30">
-                <Grid className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
-                  <span>{t("category.label")}</span>
-                </h4>
-                <p className="text-[11px] text-gray-400 font-mono">
-                  {t("category.subLabel")} ({CATEGORIES.length})
-                </p>
-              </div>
+            {/* Movies vs TV Series Switcher Tabs */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleToggleMediaType("movie")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  mediaType === "movie"
+                    ? "liquid-btn-gold text-black border-imdb/50 shadow-md"
+                    : "liquid-glass-pill hover:bg-white/10 text-gray-300 border-white/10"
+                }`}
+              >
+                <Film className="w-4 h-4" />
+                <span>{t("nav.movies")}</span>
+              </button>
+
+              <button
+                onClick={() => handleToggleMediaType("tv")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                  mediaType === "tv"
+                    ? "liquid-btn-gold text-black border-imdb/50 shadow-md"
+                    : "liquid-glass-pill hover:bg-white/10 text-gray-300 border-white/10"
+                }`}
+              >
+                <Tv className="w-4 h-4" />
+                <span>{t("nav.tvShows")}</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
@@ -372,9 +501,9 @@ export default function BrowsePage({
                 onChange={(e) => handleSelectCategory(e.target.value)}
                 className="liquid-glass-input text-xs text-white rounded-xl px-4 py-2 focus:outline-none focus:border-imdb/50 font-medium cursor-pointer"
               >
-                {CATEGORIES.map((cat) => (
+                {activeCategories.map((cat) => (
                   <option key={cat.id} value={cat.id} className="bg-[#0b0f19] text-white py-1.5 font-sans">
-                    {getCategoryLabel(cat.id)}
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -385,8 +514,9 @@ export default function BrowsePage({
             </div>
           </div>
 
+          {/* Category Pills Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-            {CATEGORIES.map((cat) => {
+            {activeCategories.map((cat) => {
               const isActive = cat.id === selectedCategory && searchResults === null;
               return (
                 <button
@@ -398,7 +528,7 @@ export default function BrowsePage({
                       : "liquid-glass-pill hover:bg-white/15 text-gray-300 border-white/10"
                   }`}
                 >
-                  {getCategoryLabel(cat.id)}
+                  {cat.name}
                 </button>
               );
             })}
@@ -412,7 +542,7 @@ export default function BrowsePage({
               <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">
                 {searchResults !== null 
                   ? t("search.resultsTitle") 
-                  : t("search.categoryTitle", { category: getCategoryLabel(selectedCategory) })}
+                  : `${getCategoryLabel(selectedCategory)} (${mediaType === "movie" ? "Movies" : "Series"})`}
               </h3>
             </div>
             <p className="text-zinc-400 text-xs font-mono mt-1">
@@ -464,7 +594,7 @@ export default function BrowsePage({
           </div>
         )}
 
-        {/* Movie Grid */}
+        {/* Movie / Show Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
           {curatedLoading || searchLoading ? (
             Array.from({ length: 10 }).map((_, i) => <MovieCardSkeleton key={i} />)
@@ -476,7 +606,7 @@ export default function BrowsePage({
                     key={movie.id}
                     movie={movie}
                     onSelect={() => navigate(`/movie/${movie.id}`)}
-                    onStream={onStreamMovie}
+                    onStream={(m) => onStreamMovie(m)}
                     onDownloadMp4={onDownloadMovie}
                     isWatchlisted={watchlist.some((m) => m.id === movie.id)}
                     onToggleWatchlist={(e) => onToggleWatchlist(movie, e)}
@@ -495,7 +625,7 @@ export default function BrowsePage({
                   key={movie.id}
                   movie={movie}
                   onSelect={() => navigate(`/movie/${movie.id}`)}
-                  onStream={onStreamMovie}
+                  onStream={(m) => onStreamMovie(m)}
                   onDownloadMp4={onDownloadMovie}
                   isWatchlisted={watchlist.some((m) => m.id === movie.id)}
                   onToggleWatchlist={(e) => onToggleWatchlist(movie, e)}
