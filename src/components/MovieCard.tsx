@@ -27,14 +27,14 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3 }}
-      className="group relative liquid-glass-card rounded-2xl overflow-hidden transition-all duration-300 flex flex-col h-[480px] cursor-pointer shadow-2xl relative"
+      className="group relative liquid-glass-card rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 flex flex-col h-auto cursor-pointer shadow-2xl relative"
       onClick={() => onSelect(movie)}
     >
       {/* Specular Light Reflection Streak on Top Corner */}
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent z-20 pointer-events-none" />
 
       {/* Poster Image / Fallback Container */}
-      <div className="relative h-[310px] w-full overflow-hidden bg-black/40 border-b border-white/10">
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-black/40 border-b border-white/10">
         {!movie.poster || imageError ? (
           <PosterFallback title={movie.title} year={movie.year} genres={movie.genres} />
         ) : (
@@ -48,43 +48,43 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
         )}
 
         {/* Floating Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
-          <div className="flex items-center gap-1 liquid-glass-pill text-imdb text-xs font-bold px-2.5 py-1 rounded-xl shadow-lg border border-white/20">
-            <Star className="w-3.5 h-3.5 fill-imdb stroke-imdb" />
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex flex-col gap-2 z-10">
+          <div className="flex items-center gap-1 liquid-glass-pill text-imdb text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl shadow-lg border border-white/20">
+            <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-imdb stroke-imdb" />
             <span>{movie.imdbRating}</span>
           </div>
         </div>
 
         {/* Action Buttons Top Right */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+        <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex items-center gap-1 sm:gap-1.5 z-10">
           {onDownloadMp4 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDownloadMp4(movie);
               }}
-              className="p-2 liquid-glass-pill rounded-xl hover:border-imdb/50 text-gray-200 hover:text-imdb transition-all shadow-lg cursor-pointer"
+              className="p-1.5 sm:p-2 liquid-glass-pill rounded-lg sm:rounded-xl hover:border-imdb/50 text-gray-200 hover:text-imdb transition-all shadow-lg cursor-pointer min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
               title="Download MP4 Video File"
             >
-              <Download className="w-4 h-4 text-imdb" />
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-imdb" />
             </button>
           )}
 
           <button
             onClick={(e) => onToggleWatchlist(movie, e)}
-            className="p-2 liquid-glass-pill rounded-xl hover:border-imdb/50 text-gray-300 hover:text-imdb transition-all shadow-lg cursor-pointer"
+            className="p-1.5 sm:p-2 liquid-glass-pill rounded-lg sm:rounded-xl hover:border-imdb/50 text-gray-300 hover:text-imdb transition-all shadow-lg cursor-pointer min-w-[32px] min-h-[32px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center"
             title={isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}
           >
             {isWatchlisted ? (
-              <BookmarkCheck className="w-4 h-4 text-imdb fill-imdb/30" />
+              <BookmarkCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-imdb fill-imdb/30" />
             ) : (
-              <Bookmark className="w-4 h-4" />
+              <Bookmark className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             )}
           </button>
         </div>
 
-        {/* Hover Action Sheet Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 gap-2 backdrop-blur-sm">
+        {/* Hover Action Sheet Overlay (Desktop hover) */}
+        <div className="hidden sm:flex absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex-col justify-end p-3 gap-2 backdrop-blur-sm">
           {onStream && (
             <button
               onClick={(e) => {
@@ -114,14 +114,14 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
       </div>
 
       {/* Card Content Details */}
-      <div className="p-4 flex flex-col flex-grow justify-between bg-gradient-to-b from-transparent to-black/30">
+      <div className="p-2.5 sm:p-4 flex flex-col flex-grow justify-between bg-gradient-to-b from-transparent to-black/30">
         <div>
           {/* Genre Row */}
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {movie.genres.slice(0, 3).map((g, i) => (
+          <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-1.5 sm:mb-2">
+            {movie.genres.slice(0, 2).map((g, i) => (
               <span
                 key={i}
-                className="text-[9px] font-mono tracking-wider uppercase text-gray-300 liquid-glass-pill px-2 py-0.5 rounded-lg"
+                className="text-[8px] sm:text-[9px] font-mono tracking-wider uppercase text-gray-300 liquid-glass-pill px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg"
               >
                 {g}
               </span>
@@ -129,28 +129,32 @@ export default function MovieCard({ movie, onSelect, onStream, onDownloadMp4, is
           </div>
 
           {/* Title */}
-          <h3 className="font-sans font-bold text-white text-base leading-tight group-hover:text-imdb transition-colors line-clamp-1 mb-1">
+          <h3 className="font-sans font-bold text-white text-xs sm:text-base leading-tight group-hover:text-imdb transition-colors line-clamp-1 mb-1">
             {movie.title}
           </h3>
 
           {/* Year / Director row */}
-          <p className="text-[11px] text-gray-400 font-mono flex items-center gap-1.5">
+          <p className="text-[10px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-1 sm:gap-1.5">
             <span>{movie.year}</span>
-            <span className="text-gray-600">•</span>
-            <span className="line-clamp-1">{t("hero.director")} {movie.director}</span>
+            {movie.director && (
+              <>
+                <span className="text-gray-600">•</span>
+                <span className="line-clamp-1 truncate max-w-[90px] sm:max-w-none">{movie.director}</span>
+              </>
+            )}
           </p>
 
-          {/* Plot snippet */}
-          <p className="text-xs text-gray-300/80 leading-normal mt-2 line-clamp-2 italic font-light">
+          {/* Plot snippet (desktop only) */}
+          <p className="hidden sm:line-clamp-2 text-xs text-gray-300/80 leading-normal mt-2 italic font-light">
             "{movie.plot}"
           </p>
         </div>
 
         {/* If custom recommendation reason exists */}
         {movie.reason && (
-          <div className="mt-3 liquid-glass-pill border-imdb/30 rounded-xl p-2.5 flex gap-2 items-start bg-imdb/5">
-            <Sparkles className="w-3.5 h-3.5 text-imdb shrink-0 mt-0.5" />
-            <p className="text-[10.5px] text-imdb leading-tight italic line-clamp-2 font-medium">
+          <div className="mt-2 sm:mt-3 liquid-glass-pill border-imdb/30 rounded-lg sm:rounded-xl p-1.5 sm:p-2.5 flex gap-1.5 sm:gap-2 items-start bg-imdb/5">
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-imdb shrink-0 mt-0.5" />
+            <p className="text-[9px] sm:text-[10.5px] text-imdb leading-tight italic line-clamp-2 font-medium">
               {movie.reason}
             </p>
           </div>

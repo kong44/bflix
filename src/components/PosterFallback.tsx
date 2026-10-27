@@ -28,6 +28,7 @@ export default function PosterFallback({ title, year, genres }: PosterFallbackPr
 
   return (
     <div
+      data-poster-fallback="true"
       className={`w-full h-full bg-gradient-to-br ${gradientClasses} flex flex-col justify-between p-6 rounded-lg border ${borderClass} shadow-xl relative overflow-hidden`}
     >
       {/* Decorative grain/glass overlay */}

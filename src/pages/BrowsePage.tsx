@@ -96,34 +96,31 @@ export default function BrowsePage({
       return;
     }
 
-    let isMounted = true;
+    const controller = new AbortController();
     setSearchLoading(true);
     setSearchError(null);
 
-    searchMediaWithPagination(searchFromUrl, pageFromUrl, mediaType)
+    searchMediaWithPagination(searchFromUrl, pageFromUrl, mediaType, controller.signal)
       .then((res) => {
-        if (isMounted) {
-          if (res.movies && res.movies.length > 0) {
-            setSearchResults(res.movies);
-            setTotalPages(res.totalPages);
-            setTotalResults(res.totalResults);
-          } else {
-            setSearchResults([]);
-            setSearchError(`No titles found matching "${searchFromUrl}".`);
-          }
-          setSearchLoading(false);
+        if (res.movies && res.movies.length > 0) {
+          setSearchResults(res.movies);
+          setTotalPages(res.totalPages);
+          setTotalResults(res.totalResults);
+        } else {
+          setSearchResults([]);
+          setSearchError(`No titles found matching "${searchFromUrl}".`);
         }
+        setSearchLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          console.error("Search error:", err);
-          setSearchError(err.message || "Failed to fetch search results.");
-          setSearchLoading(false);
-        }
+        if (err?.name === "AbortError") return;
+        console.error("Search error:", err);
+        setSearchError(err.message || "Failed to fetch search results.");
+        setSearchLoading(false);
       });
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, [searchFromUrl, pageFromUrl, mediaType]);
 
@@ -131,29 +128,28 @@ export default function BrowsePage({
   useEffect(() => {
     if (searchFromUrl) return;
 
-    let isMounted = true;
+    const controller = new AbortController();
     setCuratedLoading(true);
 
     const fetcher = mediaType === "tv"
-      ? fetchTvShowsByCategory(selectedCategory, currentPage)
-      : fetchMoviesByCategory(selectedCategory, currentPage);
+      ? fetchTvShowsByCategory(selectedCategory, currentPage, controller.signal)
+      : fetchMoviesByCategory(selectedCategory, currentPage, controller.signal);
 
     fetcher
       .then((res) => {
-        if (isMounted) {
-          setCuratedMovies(res.movies);
-          setTotalPages(res.totalPages);
-          setTotalResults(res.totalResults);
-          setCuratedLoading(false);
-        }
+        setCuratedMovies(res.movies);
+        setTotalPages(res.totalPages);
+        setTotalResults(res.totalResults);
+        setCuratedLoading(false);
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Failed to load category items:", err);
-        if (isMounted) setCuratedLoading(false);
+        setCuratedLoading(false);
       });
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, [selectedCategory, currentPage, searchFromUrl, mediaType]);
 
@@ -253,10 +249,10 @@ export default function BrowsePage({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 sm:space-y-10">
       {/* Featured Hero Carousel Section */}
       {searchResults === null && activeHero && !curatedLoading && (
-        <section className="relative w-full rounded-3xl overflow-hidden liquid-glass min-h-[460px] sm:min-h-[520px] flex items-end shadow-2xl relative">
+        <section className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden liquid-glass min-h-[380px] sm:min-h-[520px] flex items-end shadow-2xl relative">
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent z-20 pointer-events-none" />
 
           <AnimatePresence mode="wait">
@@ -278,7 +274,7 @@ export default function BrowsePage({
             </motion.div>
           </AnimatePresence>
 
-          <div className="relative z-10 p-6 sm:p-12 w-full max-w-4xl space-y-4">
+          <div className="relative z-10 p-4 sm:p-12 w-full max-w-4xl space-y-3 sm:space-y-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={`text-${activeHero.id}`}
@@ -286,24 +282,24 @@ export default function BrowsePage({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
-                className="space-y-3"
+                className="space-y-2 sm:space-y-3"
               >
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 liquid-btn-gold text-black font-extrabold text-[10px] uppercase tracking-widest rounded-full shadow-lg">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 liquid-btn-gold text-black font-extrabold text-[9px] sm:text-[10px] uppercase tracking-widest rounded-full shadow-lg">
                     {t("hero.topChoice")}
                   </span>
-                  <div className="flex items-center text-imdb text-sm font-bold liquid-glass-pill px-2.5 py-0.5 rounded-full border border-white/20">
-                    <Star className="w-4 h-4 fill-imdb stroke-imdb mr-1" />
+                  <div className="flex items-center text-imdb text-xs sm:text-sm font-bold liquid-glass-pill px-2 sm:px-2.5 py-0.5 rounded-full border border-white/20">
+                    <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-imdb stroke-imdb mr-1" />
                     <span>{activeHero.imdbRating}</span>
                   </div>
                   {activeHero.mediaType === "tv" && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-cyan-300 font-bold border border-cyan-400/20">
+                    <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-white/10 text-[9px] sm:text-[10px] font-mono text-cyan-300 font-bold border border-cyan-400/20">
                       TV SERIES
                     </span>
                   )}
                 </div>
 
-                <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase leading-none drop-shadow-lg">
+                <h2 className="text-2xl sm:text-5xl font-black text-white tracking-tight uppercase leading-none drop-shadow-lg line-clamp-2">
                   {activeHero.title}
                 </h2>
 
@@ -311,35 +307,37 @@ export default function BrowsePage({
                   {activeHero.plot}
                 </p>
 
-                <div className="flex flex-wrap gap-2 text-xs font-mono text-gray-400 py-1">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono text-gray-400 py-0.5 sm:py-1">
                   <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.year}</span>
                   <span>•</span>
-                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.director}</span>
+                  <span className="liquid-glass-pill px-2 py-0.5 rounded-md truncate max-w-[120px] sm:max-w-none">{activeHero.director}</span>
                   <span>•</span>
                   <span className="liquid-glass-pill px-2 py-0.5 rounded-md">{activeHero.runtime}</span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
                   <button
                     onClick={() => onStreamMovie(activeHero)}
-                    className="liquid-btn-gold text-black px-6 py-3 rounded-xl font-extrabold text-xs flex items-center shadow-xl cursor-pointer"
+                    className="liquid-btn-gold text-black px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-extrabold text-xs flex items-center shadow-xl cursor-pointer"
                   >
-                    <Play className="w-3.5 h-3.5 mr-2 fill-black" />
+                    <Play className="w-3.5 h-3.5 mr-1.5 sm:mr-2 fill-black" />
                     <span>{t("hero.watchStream")}</span>
                   </button>
                   <button
                     onClick={() => onDownloadMovie(activeHero)}
-                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
+                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
                   >
-                    <Download className="w-3.5 h-3.5 mr-2 text-imdb" />
-                    <span>{t("hero.downloadMp4")}</span>
+                    <Download className="w-3.5 h-3.5 mr-1.5 sm:mr-2 text-imdb" />
+                    <span className="hidden sm:inline">{t("hero.downloadMp4")}</span>
+                    <span className="sm:hidden">Download</span>
                   </button>
                   <button
                     onClick={() => navigate(`/movie/${activeHero.id}`)}
-                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-5 py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
+                    className="liquid-glass-pill hover:bg-white/20 text-white border border-white/20 px-3.5 sm:px-5 py-2.5 sm:py-3 rounded-xl font-semibold text-xs flex items-center transition-all cursor-pointer shadow-lg"
                   >
-                    <Info className="w-3.5 h-3.5 mr-2" />
-                    <span>{t("hero.showDetails")}</span>
+                    <Info className="w-3.5 h-3.5 mr-1.5 sm:mr-2" />
+                    <span className="hidden sm:inline">{t("hero.showDetails")}</span>
+                    <span className="sm:hidden">Details</span>
                   </button>
                 </div>
               </motion.div>
@@ -376,11 +374,11 @@ export default function BrowsePage({
             </span>
           </div>
 
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 no-scrollbar">
             {continueWatching.map((item) => (
               <div
                 key={item.id}
-                className="group relative min-w-[240px] sm:min-w-[280px] max-w-[280px] bg-[#0c0c0f] border border-white/10 hover:border-imdb/50 rounded-2xl overflow-hidden shadow-xl transition-all flex flex-col shrink-0"
+                className="group relative min-w-[220px] sm:min-w-[280px] max-w-[280px] bg-[#0c0c0f] border border-white/10 hover:border-imdb/50 rounded-2xl overflow-hidden shadow-xl transition-all flex flex-col shrink-0"
               >
                 {/* Thumbnail with progress overlay */}
                 <div className="relative aspect-video w-full bg-black/60 overflow-hidden">
@@ -515,7 +513,7 @@ export default function BrowsePage({
           </div>
 
           {/* Category Pills Bar */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
             {activeCategories.map((cat) => {
               const isActive = cat.id === selectedCategory && searchResults === null;
               return (
@@ -536,7 +534,7 @@ export default function BrowsePage({
         </div>
 
         {/* Section Title & Search Input */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-3">
               <h3 className="text-xl font-bold border-l-4 border-imdb pl-3 tracking-tight">
@@ -595,7 +593,7 @@ export default function BrowsePage({
         )}
 
         {/* Movie / Show Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
           {curatedLoading || searchLoading ? (
             Array.from({ length: 10 }).map((_, i) => <MovieCardSkeleton key={i} />)
           ) : (

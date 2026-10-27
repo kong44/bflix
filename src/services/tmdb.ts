@@ -1,4 +1,5 @@
 import { Movie, MovieDetail, MediaType, TvEpisode, TvSeasonDetail } from "../types";
+import { cachedFetchJson } from "./apiClient";
 
 // TMDB API Configuration
 const env = (import.meta as any).env || {};
@@ -6,26 +7,6 @@ const TMDB_API_KEY = env.TMDB_API_KEY || env.VITE_TMDB_API_KEY || "15d2fb6030da5
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const BACKDROP_BASE_URL = "https://image.tmdb.org/t/p/w1280";
-
-// In-Memory Request Cache with 5-minute TTL
-interface CacheEntry<T> {
-  timestamp: number;
-  data: T;
-}
-const CACHE_TTL = 5 * 60 * 1000;
-const requestCache = new Map<string, CacheEntry<any>>();
-
-async function fetchWithCache<T>(url: string): Promise<T> {
-  const cached = requestCache.get(url);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
-  }
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`TMDB error ${res.status}`);
-  const data = await res.json();
-  requestCache.set(url, { timestamp: Date.now(), data });
-  return data;
-}
 
 // TMDB Movie Genre Mapping
 export const GENRE_MAP: Record<number, string> = {
@@ -212,10 +193,11 @@ export const TV_CATEGORIES: CategoryOption[] = [
 
 export const CATEGORIES = MOVIE_CATEGORIES;
 
-// 1. Fetch Movies by Category (Optimized - 1 network request, cached)
+// 1. Fetch Movies by Category (Optimized - In-Flight Deduplication, Multi-Tier Cached)
 export async function fetchMoviesByCategory(
   categoryKey: string = "trending",
-  page: number = 1
+  page: number = 1,
+  signal?: AbortSignal
 ): Promise<{ movies: Movie[]; totalPages: number; page: number; totalResults: number }> {
   try {
     const category = MOVIE_CATEGORIES.find((c) => c.id === categoryKey) || MOVIE_CATEGORIES[0];
@@ -229,7 +211,7 @@ export async function fetchMoviesByCategory(
       url = `${TMDB_BASE_URL}/trending/movie/week?api_key=${TMDB_API_KEY}&page=${page}`;
     }
 
-    const data = await fetchWithCache<any>(url);
+    const data = await cachedFetchJson<any>(url, { signal, persistSession: page === 1 });
     const results = data.results || [];
     const totalPages = Math.min(data.total_pages || 1, 500);
     const totalResults = data.total_results || results.length;
@@ -243,7 +225,8 @@ export async function fetchMoviesByCategory(
       page: data.page || page,
       totalResults
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "AbortError") throw error;
     console.error("Failed to fetch category movies:", error);
     return {
       movies: FALLBACK_MOVIES,
@@ -254,10 +237,11 @@ export async function fetchMoviesByCategory(
   }
 }
 
-// 2. Fetch TV Shows by Category (Optimized - 1 network request, cached)
+// 2. Fetch TV Shows by Category (Optimized - In-Flight Deduplication, Multi-Tier Cached)
 export async function fetchTvShowsByCategory(
   categoryKey: string = "trending_tv",
-  page: number = 1
+  page: number = 1,
+  signal?: AbortSignal
 ): Promise<{ movies: Movie[]; totalPages: number; page: number; totalResults: number }> {
   try {
     const category = TV_CATEGORIES.find((c) => c.id === categoryKey) || TV_CATEGORIES[0];
@@ -271,7 +255,7 @@ export async function fetchTvShowsByCategory(
       url = `${TMDB_BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`;
     }
 
-    const data = await fetchWithCache<any>(url);
+    const data = await cachedFetchJson<any>(url, { signal, persistSession: page === 1 });
     const results = data.results || [];
     const totalPages = Math.min(data.total_pages || 1, 500);
     const totalResults = data.total_results || results.length;
@@ -284,7 +268,8 @@ export async function fetchTvShowsByCategory(
       page: data.page || page,
       totalResults
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "AbortError") throw error;
     console.error("Failed to fetch TV category:", error);
     return {
       movies: FALLBACK_TV_SHOWS,
@@ -296,16 +281,17 @@ export async function fetchTvShowsByCategory(
 }
 
 // Legacy curated helper
-export async function fetchCuratedMovies(): Promise<Movie[]> {
-  const data = await fetchMoviesByCategory("trending", 1);
+export async function fetchCuratedMovies(signal?: AbortSignal): Promise<Movie[]> {
+  const data = await fetchMoviesByCategory("trending", 1, signal);
   return data.movies.slice(0, 12);
 }
 
-// 3. Search Media (Movies or TV or Multi) with Pagination (Optimized)
+// 3. Search Media (Movies or TV or Multi) with Pagination (Optimized & Abortable)
 export async function searchMediaWithPagination(
   query: string,
   page: number = 1,
-  mediaType: MediaType | "multi" = "multi"
+  mediaType: MediaType | "multi" = "multi",
+  signal?: AbortSignal
 ): Promise<{ movies: Movie[]; totalPages: number; page: number; totalResults: number }> {
   try {
     let endpoint = "/search/multi";
@@ -313,7 +299,7 @@ export async function searchMediaWithPagination(
     if (mediaType === "tv") endpoint = "/search/tv";
 
     const url = `${TMDB_BASE_URL}${endpoint}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`;
-    const data = await fetchWithCache<any>(url);
+    const data = await cachedFetchJson<any>(url, { signal, ttlMs: 3 * 60 * 1000 });
     const results = data.results || [];
     const totalPages = Math.min(data.total_pages || 1, 500);
     const totalResults = data.total_results || results.length;
@@ -333,7 +319,8 @@ export async function searchMediaWithPagination(
       page: data.page || page,
       totalResults
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "AbortError") throw error;
     console.error("TMDB Search Error:", error);
     return { movies: [], totalPages: 1, page: 1, totalResults: 0 };
   }
@@ -341,18 +328,23 @@ export async function searchMediaWithPagination(
 
 export async function searchMoviesWithPagination(
   query: string,
-  page: number = 1
+  page: number = 1,
+  signal?: AbortSignal
 ): Promise<{ movies: Movie[]; totalPages: number; page: number; totalResults: number }> {
-  return searchMediaWithPagination(query, page, "multi");
+  return searchMediaWithPagination(query, page, "multi", signal);
 }
 
-export async function searchMovies(query: string): Promise<Movie[]> {
-  const data = await searchMoviesWithPagination(query, 1);
+export async function searchMovies(query: string, signal?: AbortSignal): Promise<Movie[]> {
+  const data = await searchMoviesWithPagination(query, 1, signal);
   return data.movies;
 }
 
-// 4. Fetch Detailed Movie or TV Show Information (On-Demand Loading)
-export async function fetchMovieDetails(movieId: string, mediaType?: MediaType): Promise<MovieDetail> {
+// 4. Fetch Detailed Movie or TV Show Information (On-Demand Loading & Session Cached)
+export async function fetchMovieDetails(
+  movieId: string,
+  mediaType?: MediaType,
+  signal?: AbortSignal
+): Promise<MovieDetail> {
   let tmdbId = movieId;
   let detectedType: MediaType = mediaType || "movie";
 
@@ -360,7 +352,7 @@ export async function fetchMovieDetails(movieId: string, mediaType?: MediaType):
   if (movieId.startsWith("tt")) {
     try {
       const findUrl = `${TMDB_BASE_URL}/find/${movieId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
-      const findData = await fetchWithCache<any>(findUrl);
+      const findData = await cachedFetchJson<any>(findUrl, { signal, ttlMs: 24 * 60 * 60 * 1000, persistSession: true });
       if (findData.movie_results && findData.movie_results.length > 0) {
         tmdbId = String(findData.movie_results[0].id);
         detectedType = "movie";
@@ -368,7 +360,8 @@ export async function fetchMovieDetails(movieId: string, mediaType?: MediaType):
         tmdbId = String(findData.tv_results[0].id);
         detectedType = "tv";
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw e;
       console.warn("Find by IMDb ID failed, using ID directly:", movieId);
     }
   }
@@ -377,14 +370,16 @@ export async function fetchMovieDetails(movieId: string, mediaType?: MediaType):
   let resData: any = null;
   try {
     const url = `${TMDB_BASE_URL}/${detectedType}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits,keywords,reviews,recommendations,external_ids`;
-    resData = await fetchWithCache<any>(url);
-  } catch (err) {
+    resData = await cachedFetchJson<any>(url, { signal, persistSession: true, ttlMs: 30 * 60 * 1000 });
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw err;
     const fallbackType = detectedType === "movie" ? "tv" : "movie";
     try {
       const altUrl = `${TMDB_BASE_URL}/${fallbackType}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits,keywords,reviews,recommendations,external_ids`;
-      resData = await fetchWithCache<any>(altUrl);
+      resData = await cachedFetchJson<any>(altUrl, { signal, persistSession: true, ttlMs: 30 * 60 * 1000 });
       detectedType = fallbackType;
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.name === "AbortError") throw e;
       throw new Error(`Failed to load details for ${movieId}`);
     }
   }
@@ -464,14 +459,15 @@ export async function fetchMovieDetails(movieId: string, mediaType?: MediaType):
   };
 }
 
-// 5. Fetch Season Episodes for TV Series (Cached)
+// 5. Fetch Season Episodes for TV Series (Cached with in-flight deduplication)
 export async function fetchTvSeasonEpisodes(
   tvId: string,
-  seasonNumber: number = 1
+  seasonNumber: number = 1,
+  signal?: AbortSignal
 ): Promise<TvEpisode[]> {
   try {
     const url = `${TMDB_BASE_URL}/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}`;
-    const data = await fetchWithCache<any>(url);
+    const data = await cachedFetchJson<any>(url, { signal, ttlMs: 60 * 60 * 1000, persistSession: true });
     const episodes: TvEpisode[] = (data.episodes || []).map((ep: any) => ({
       id: ep.id,
       name: ep.name || `Episode ${ep.episode_number}`,
@@ -483,14 +479,15 @@ export async function fetchTvSeasonEpisodes(
       voteAverage: ep.vote_average ? Number(ep.vote_average.toFixed(1)) : 8.0
     }));
     return episodes;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "AbortError") throw error;
     console.error(`Failed to fetch season ${seasonNumber} for TV ID ${tvId}:`, error);
     return [];
   }
 }
 
 // 6. Client-Side Vibe Search (100% Private, Zero External AI API Required)
-export async function getAIRecommendations(prompt: string): Promise<Movie[]> {
+export async function getAIRecommendations(prompt: string, signal?: AbortSignal): Promise<Movie[]> {
   const promptLower = prompt.toLowerCase();
 
   let genreId: number | null = null;
@@ -510,7 +507,7 @@ export async function getAIRecommendations(prompt: string): Promise<Movie[]> {
   }
 
   try {
-    const data = await fetchWithCache<any>(url);
+    const data = await cachedFetchJson<any>(url, { signal, ttlMs: 15 * 60 * 1000 });
     const results = data.results || [];
 
     const recommendations = results.slice(0, 8).map((item: any) => {
@@ -522,7 +519,8 @@ export async function getAIRecommendations(prompt: string): Promise<Movie[]> {
     });
 
     return recommendations;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "AbortError") throw error;
     console.error("Vibe recommendation fallback:", error);
     return FALLBACK_MOVIES.slice(0, 4);
   }

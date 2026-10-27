@@ -1,27 +1,36 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Movie } from "../types";
 import { 
   X, 
   Play, 
   RefreshCw, 
   Maximize2, 
+  Minimize2, 
   ExternalLink, 
   ShieldCheck, 
   ShieldOff, 
-  Shield,
   Film, 
   Tv, 
-  Radio, 
   ChevronRight, 
-  ChevronDown,
-  Server,
-  AlertCircle,
+  ChevronDown, 
+  Server, 
+  AlertCircle, 
   Download,
-  Video
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import VideoJSPlayer from "./VideoJSPlayer";
 import { getPlaybackProgress, savePlaybackProgress } from "../utils/playbackStorage";
+import { toggleFullscreen, isFullscreen } from "../utils/fullscreen";
+import { 
+  STREAM_PROVIDERS, 
+  getSavedProviderIndex, 
+  saveProviderPreference 
+} from "../services/streamProviders";
+import { acquireAdShield, releaseAdShield } from "../utils/adShield";
+import { cachedFetchJson } from "../services/apiClient";
+
+const TMDB_API_KEY = "15d2fb6030da5f74303f47bf9d0e0a7e";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
 interface StreamPlayerModalProps {
   movie: Movie;
@@ -32,118 +41,6 @@ interface StreamPlayerModalProps {
   onDownloadMp4?: (movie: Movie) => void;
 }
 
-interface StreamProvider {
-  id: string;
-  name: string;
-  badge: string;
-  getMovieUrl: (tmdbId: string, imdbId: string, id: string) => string;
-  getTvUrl: (tmdbId: string, imdbId: string, id: string, season: number, episode: number) => string;
-}
-
-const TMDB_API_KEY = "15d2fb6030da5f74303f47bf9d0e0a7e";
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-
-const PROVIDERS: StreamProvider[] = [
-  {
-    id: "vidsrc_me",
-    name: "VidSrc.me",
-    badge: "DEFAULT HD",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.me/embed/movie?tmdb=${tmdb || id}${imdb ? `&imdb=${imdb}` : ""}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
-  },
-  {
-    id: "multiembed",
-    name: "MultiEmbed",
-    badge: "BACKUP",
-    getMovieUrl: (tmdb, imdb, id) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://multiembed.mov/?video_id=${tmdb || id}&tmdb=1&s=${s}&e=${e}`
-  },
-  {
-    id: "vidsrc_cc",
-    name: "VidSrc.cc",
-    badge: "FAST 1080P",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.cc/v2/embed/movie/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.cc/v2/embed/tv/${tmdb || id}/${s}/${e}`
-  },
-  {
-    id: "embed_su",
-    name: "Embed.su",
-    badge: "AUTO SUB",
-    getMovieUrl: (tmdb, imdb, id) => `https://embed.su/embed/movie/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://embed.su/embed/tv/${tmdb || id}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_pro",
-    name: "VidSrc Pro",
-    badge: "4K HD",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.pro/embed/movie/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.pro/embed/tv/${tmdb || id}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_in",
-    name: "VidSrc.in",
-    badge: "SERVER 4",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.in/embed/movie/${tmdb || id || imdb}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.in/embed/tv/${tmdb || id || imdb}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_to",
-    name: "VidSrc.to",
-    badge: "SERVER 5",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.to/embed/movie/${tmdb || id || imdb}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.to/embed/tv/${tmdb || id || imdb}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_net",
-    name: "VidSrc.net",
-    badge: "SERVER 6",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.net/embed/movie/${tmdb || id || imdb}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.net/embed/tv/${tmdb || id || imdb}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_vip",
-    name: "VidSrc.vip",
-    badge: "SERVER 7",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.vip/embed/movie/${tmdb || id || imdb}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.vip/embed/tv/${tmdb || id || imdb}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_xyz",
-    name: "VidSrc.xyz",
-    badge: "SERVER 7",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.xyz/embed/movie/${tmdb || id || imdb}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.xyz/embed/tv/${tmdb || id || imdb}/${s}/${e}`
-  },
-  {
-    id: "autoembed",
-    name: "AutoEmbed",
-    badge: "SERVER 8",
-    getMovieUrl: (tmdb, imdb, id) => `https://player.autoembed.cc/embed/movie/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://player.autoembed.cc/embed/tv/${tmdb || id}/${s}/${e}`
-  },
-  {
-    id: "vidsrc_icu",
-    name: "VidSrc.icu",
-    badge: "SERVER 9",
-    getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.icu/embed/movie/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.icu/embed/tv/${tmdb || id}/${s}/${e}`
-  },
-  {
-    id: "two_embed",
-    name: "2Embed",
-    badge: "STABLE",
-    getMovieUrl: (tmdb, imdb, id) => `https://www.2embed.cc/embed/${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://www.2embed.cc/embedtv/${tmdb || id}&s=${s}&e=${e}`
-  },
-  {
-    id: "smashystream",
-    name: "SmashyStream",
-    badge: "ALT SERVER",
-    getMovieUrl: (tmdb, imdb, id) => `https://embed.smashystream.com/playere.php?tmdb=${tmdb || id}`,
-    getTvUrl: (tmdb, imdb, id, s, e) => `https://embed.smashystream.com/playere.php?tmdb=${tmdb || id}&season=${s}&episode=${e}`
-  }
-];
-
 export default function StreamPlayerModal({
   movie,
   initialSeason,
@@ -153,20 +50,11 @@ export default function StreamPlayerModal({
   onDownloadMp4
 }: StreamPlayerModalProps) {
   const savedProgress = getPlaybackProgress(movie.id);
-  // Default to VidSrc.me (index 0) with localStorage memory
-  const [selectedProviderIndex, setSelectedProviderIndex] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem("bflix_stream_server");
-      if (saved) {
-        const idx = PROVIDERS.findIndex((p) => p.id === saved);
-        if (idx >= 0) return idx;
-      }
-    } catch (e) {}
-    return 0; // VidSrc.me
-  });
-  const selectedProvider = PROVIDERS[selectedProviderIndex] || PROVIDERS[0];
 
-  const [playerEngine, setPlayerEngine] = useState<"embed" | "videojs">("embed");
+  // Player state with localStorage memory
+  const [selectedProviderIndex, setSelectedProviderIndex] = useState<number>(getSavedProviderIndex);
+  const selectedProvider = STREAM_PROVIDERS[selectedProviderIndex] || STREAM_PROVIDERS[0];
+
   const [mediaType, setMediaType] = useState<"movie" | "tv">(
     movie.mediaType === "tv" ? "tv" : (savedProgress?.mediaType || "movie")
   );
@@ -180,6 +68,7 @@ export default function StreamPlayerModal({
     initialTime || savedProgress?.currentTime || 0
   );
   const [iframeKey, setIframeKey] = useState(0);
+
   // Default to "off" with optional localStorage memory
   const [sandboxMode, setSandboxMode] = useState<"strict" | "compat" | "off">(() => {
     try {
@@ -191,255 +80,56 @@ export default function StreamPlayerModal({
     return "off";
   });
 
-  // Ad Blocker: Window-Level Popup Defeater Trap
-  useEffect(() => {
-    if (sandboxMode === "off") return;
-    const originalOpen = window.open;
-    // Intercept any popup or redirect attempts
-    (window as any).open = function (url?: string | URL, target?: string, features?: string) {
-      console.warn("[BFlix Ad Shield] Blocked unauthorized ad popup/tab to:", url);
-      // Return a mock window object so embed player code expecting a window does not throw null errors
-      return {
-        closed: false,
-        close: () => {},
-        focus: () => {},
-        blur: () => {},
-        postMessage: () => {},
-        document: {},
-        location: { href: "" }
-      };
-    };
+  const [isIframeLoading, setIsIframeLoading] = useState(true);
+  const [isSlowServer, setIsSlowServer] = useState(false);
+  const [isFullscreenActive, setIsFullscreenActive] = useState(false);
 
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const serverSwitchTimeout = useRef<number | null>(null);
+  const slowServerTimer = useRef<number | null>(null);
+
+  // Ad Blocker: Window-Level Popup Shield Singleton
+  useEffect(() => {
+    acquireAdShield(sandboxMode);
     return () => {
-      window.open = originalOpen;
+      releaseAdShield(sandboxMode);
     };
   }, [sandboxMode]);
 
-  // Track playback history
-  useEffect(() => {
-    savePlaybackProgress({
-      id: movie.id,
-      tmdbId: movie.tmdbId,
-      imdbId: movie.imdbId,
-      mediaType,
-      title: movie.title,
-      poster: movie.poster,
-      backdrop: movie.backdrop,
-      currentTime: initialSeekTime,
-      duration: savedProgress?.duration || 0,
-      percentage: savedProgress?.percentage || 5,
-      season: mediaType === "tv" ? season : undefined,
-      episode: mediaType === "tv" ? episode : undefined,
-      updatedAt: Date.now()
-    });
-  }, [movie.id, mediaType, season, episode]);
+  // Synchronous initial ID detection
+  const initialTmdb = movie.tmdbId || (!movie.id.startsWith("tt") && /^\d+$/.test(movie.id) ? movie.id : "");
+  const initialImdb = movie.imdbId || (movie.id.startsWith("tt") ? movie.id : "");
 
-  // Multi-Format Stream MIME Type Detector (.m3u8, .mp4, .ts, .mpd, .webm, .mkv)
-  const detectStreamType = (url: string): string => {
-    const cleanUrl = url.split("?")[0].toLowerCase();
-    if (cleanUrl.endsWith(".m3u8") || cleanUrl.endsWith(".m8u")) return "application/x-mpegURL";
-    if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".m4v")) return "video/mp4";
-    if (cleanUrl.endsWith(".ts")) return "video/mp2t";
-    if (cleanUrl.endsWith(".mpd")) return "application/dash+xml";
-    if (cleanUrl.endsWith(".webm")) return "video/webm";
-    if (cleanUrl.endsWith(".mkv")) return "video/x-matroska";
-    return "application/x-mpegURL"; // default HLS fallback
-  };
+  const [tmdbId, setTmdbId] = useState<string>(initialTmdb);
+  const [imdbId, setImdbId] = useState<string>(initialImdb);
 
-  const detectFormatLabel = (url: string): string => {
-    const cleanUrl = url.split("?")[0].toLowerCase();
-    if (cleanUrl.endsWith(".m3u8") || cleanUrl.endsWith(".m8u")) return "HLS (.m3u8)";
-    if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".m4v")) return "Direct MP4 (.mp4)";
-    if (cleanUrl.endsWith(".ts")) return "Transport Stream (.ts)";
-    if (cleanUrl.endsWith(".mpd")) return "MPEG-DASH (.mpd)";
-    if (cleanUrl.endsWith(".webm")) return "WebM (.webm)";
-    if (cleanUrl.endsWith(".mkv")) return "Matroska (.mkv)";
-    return "Stream (.m3u8)";
-  };
-
-  // Multi-Format Stream MIME Type Detector (.m3u8, .mp4, .ts, .mpd, .webm, .mkv)
-
-  const [m3u8Input, setM3u8Input] = useState<string>("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
-  const [activeM3u8Url, setActiveM3u8Url] = useState<string>("https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8");
-  const [videoJsError, setVideoJsError] = useState<string | null>(null);
-  const [isInspecting, setIsInspecting] = useState<boolean>(false);
-  const [inspectStatus, setInspectStatus] = useState<string | null>(null);
-
-  const handleLoadM3u8 = (urlToLoad?: string) => {
-    const targetUrl = (urlToLoad || m3u8Input).trim();
-    if (!targetUrl) return;
-    setVideoJsError(null);
-    setActiveM3u8Url(targetUrl);
-    setM3u8Input(targetUrl);
-  };
-
-  // Real Stream Inspector & Extraction Engine (.m3u8, .mp4, .ts, .mpd)
-  const handleInspectAndExtractM3u8 = async () => {
-    setIsInspecting(true);
-    const activeId = tmdbId || imdbId || movie.id;
-    setInspectStatus(`🔍 Step 1/3: Connecting to ${selectedProvider.name} (${currentEmbedUrl})...`);
-
-    let extractedUrl = "";
-    let formatFound = "";
-
-    // 1. Direct custom videoUrl from movie object
-    if (movie.videoUrl) {
-      extractedUrl = movie.videoUrl;
-      formatFound = detectFormatLabel(movie.videoUrl);
-    } else {
-      // 2. Real network probe via public CORS proxies to inspect server response code
-      try {
-        setInspectStatus(`📡 Step 2/3: Fetching and parsing HTML/JS code from ${selectedProvider.name} embed server...`);
-        const corsProxies = [
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(currentEmbedUrl)}`,
-          `https://corsproxy.io/?${encodeURIComponent(currentEmbedUrl)}`
-        ];
-
-        let htmlContent = "";
-        for (const proxyUrl of corsProxies) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3500);
-            const res = await fetch(proxyUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-              htmlContent = await res.text();
-              if (htmlContent.length > 50) break;
-            }
-          } catch (err) {
-            // Try next proxy
-          }
-        }
-
-        if (htmlContent) {
-          // Parse stream URLs (.m3u8, .mp4, .ts, .mpd) from source code
-          const streamRegex = /(https?:\/\/[^\s"'`<>]+?\.(?:m3u8|m8u|mp4|ts|mpd)(?:\?[^\s"'`<>]*)?)/gi;
-          const matches = Array.from(htmlContent.matchAll(streamRegex)).map((m) => m[1]);
-
-          // Also look for JS variables file:"...", source:"...", url:"..."
-          const jsSourceRegex = /(?:file|source|src|url|playlist)\s*[:=]\s*["'](https?:\/\/[^"'\s]+)["']/gi;
-          const jsMatches = Array.from(htmlContent.matchAll(jsSourceRegex)).map((m) => m[1]);
-
-          const allFoundUrls = [...matches, ...jsMatches].filter((url) => {
-            const low = url.toLowerCase();
-            return (
-              (low.includes(".m3u8") || low.includes(".mp4") || low.includes(".ts") || low.includes(".mpd")) &&
-              !low.includes("logo") &&
-              !low.includes("poster") &&
-              !low.includes("subtitles") &&
-              !low.includes("font") &&
-              !low.includes("analytics")
-            );
-          });
-
-          if (allFoundUrls.length > 0) {
-            extractedUrl = allFoundUrls[0];
-            formatFound = `REAL EMBED STREAM: ${detectFormatLabel(extractedUrl)}`;
-          }
-        }
-      } catch (err) {
-        console.warn("Proxy inspect attempt skipped:", err);
-      }
-
-      // 3. Provider-specific stream endpoint resolvers if raw HTML fetch is blocked by Cloudflare turnstile
-      if (!extractedUrl) {
-        setInspectStatus(`⚡ Step 3/3: Resolving direct stream endpoint for ${selectedProvider.name} (ID: ${activeId})...`);
-        await new Promise((resolve) => setTimeout(resolve, 600));
-
-        // Provider-specific direct stream endpoints based on selected server
-        const providerStreamEndpoints: Record<string, string> = {
-          vidsrc_cc: `https://vidsrc.cc/api/source/${mediaType === "tv" ? `tv/${activeId}/${season}/${episode}` : `movie/${activeId}`}`,
-          embed_su: `https://embed.su/api/e/${activeId}`,
-          vidsrc_pro: `https://vidsrc.pro/api/stream/${mediaType}/${activeId}`,
-          vidsrc_me: `https://vidsrc.me/api/stream?tmdb=${activeId}`,
-          autoembed: `https://player.autoembed.cc/api/stream/${mediaType}/${activeId}`
-        };
-
-        const directEndpoint = providerStreamEndpoints[selectedProvider.id];
-
-        if (directEndpoint) {
-          extractedUrl = directEndpoint;
-          formatFound = `${selectedProvider.name} Direct API Stream (.m3u8)`;
-        } else {
-          // Fallback stream candidates based on media metadata (e.g. Akamai HLS / Google Storage MP4 / Unified Streaming)
-          const fallbackStreams = [
-            `https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8`,
-            `https://multiplatform-f.akamaihd.net/i/multi/will/bbb/big_buck_bunny_,640x360_400,1024x576_800,1280x720_1000,1920x1080_1500,.mov.csmil/master.m3u8`,
-            `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`,
-            `https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8`
-          ];
-
-          // Deterministic selection based on activeId so different movies/servers get different stream links!
-          let idHash = 0;
-          const hashStr = `${movie.id}-${selectedProvider.id}-${season}-${episode}`;
-          for (let i = 0; i < hashStr.length; i++) idHash += hashStr.charCodeAt(i);
-          const chosenIndex = idHash % fallbackStreams.length;
-          extractedUrl = fallbackStreams[chosenIndex];
-          formatFound = `Resolved Stream: ${detectFormatLabel(extractedUrl)}`;
-        }
-      }
-    }
-
-    setInspectStatus(`⚡ Stream found! Extracting format [${formatFound}] -> Loading in Video.js...`);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    handleLoadM3u8(extractedUrl);
-    setPlayerEngine("videojs");
-    setIsInspecting(false);
-    setTimeout(() => setInspectStatus(null), 4500);
-  };
-
-  // Resolved ID state
-  const [tmdbId, setTmdbId] = useState<string>(movie.tmdbId || "");
-  const [imdbId, setImdbId] = useState<string>(movie.imdbId || "");
-
-  // Resolve external IDs if missing
+  // Resolve external IDs if missing (with in-flight deduplication)
   useEffect(() => {
     let isMounted = true;
 
     async function resolveIds() {
-      // Determine initial values from movie prop
-      let currentTmdb = movie.tmdbId || "";
-      let currentImdb = movie.imdbId || "";
-
-      if (!currentTmdb && !movie.id.startsWith("tt") && /^\d+$/.test(movie.id)) {
-        currentTmdb = movie.id;
-      }
-      if (!currentImdb && movie.id.startsWith("tt")) {
-        currentImdb = movie.id;
-      }
+      let currentTmdb = initialTmdb;
+      let currentImdb = initialImdb;
 
       if (currentTmdb && currentImdb) {
-        if (isMounted) {
-          setTmdbId(currentTmdb);
-          setImdbId(currentImdb);
-        }
         return;
       }
 
       try {
         const lookupId = currentTmdb || currentImdb || movie.id;
         if (lookupId.startsWith("tt")) {
-          // Find TMDB ID from IMDb ID
-          const findRes = await fetch(
-            `${TMDB_BASE_URL}/find/${lookupId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`
-          );
-          if (findRes.ok) {
-            const findData = await findRes.json();
-            if (findData.movie_results?.[0]?.id) {
-              currentTmdb = String(findData.movie_results[0].id);
-            }
+          const findUrl = `${TMDB_BASE_URL}/find/${lookupId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
+          const findData = await cachedFetchJson<any>(findUrl, { persistSession: true, ttlMs: 24 * 60 * 60 * 1000 });
+          if (findData.movie_results?.[0]?.id) {
+            currentTmdb = String(findData.movie_results[0].id);
+          } else if (findData.tv_results?.[0]?.id) {
+            currentTmdb = String(findData.tv_results[0].id);
           }
         } else if (/^\d+$/.test(lookupId)) {
-          // Fetch external IDs from numeric TMDB ID
-          const detailRes = await fetch(
-            `${TMDB_BASE_URL}/movie/${lookupId}/external_ids?api_key=${TMDB_API_KEY}`
-          );
-          if (detailRes.ok) {
-            const extData = await detailRes.json();
-            if (extData.imdb_id) {
-              currentImdb = extData.imdb_id;
-            }
+          const detailUrl = `${TMDB_BASE_URL}/${movie.mediaType === "tv" ? "tv" : "movie"}/${lookupId}/external_ids?api_key=${TMDB_API_KEY}`;
+          const extData = await cachedFetchJson<any>(detailUrl, { persistSession: true, ttlMs: 24 * 60 * 60 * 1000 });
+          if (extData.imdb_id) {
+            currentImdb = extData.imdb_id;
           }
         }
       } catch (e) {
@@ -457,7 +147,76 @@ export default function StreamPlayerModal({
     return () => {
       isMounted = false;
     };
-  }, [movie]);
+  }, [movie.id]);
+
+  // Loading & Slow Server Tracker
+  useEffect(() => {
+    setIsIframeLoading(true);
+    setIsSlowServer(false);
+
+    if (slowServerTimer.current) clearTimeout(slowServerTimer.current);
+    slowServerTimer.current = window.setTimeout(() => {
+      setIsSlowServer(true);
+    }, 8000);
+
+    return () => {
+      if (slowServerTimer.current) clearTimeout(slowServerTimer.current);
+    };
+  }, [selectedProvider.id, mediaType, season, episode, iframeKey, sandboxMode]);
+
+  // Clean unmount: reset iframe src to kill decoders & workers
+  useEffect(() => {
+    return () => {
+      if (iframeRef.current) {
+        iframeRef.current.src = "about:blank";
+      }
+      if (serverSwitchTimeout.current) {
+        clearTimeout(serverSwitchTimeout.current);
+      }
+      if (slowServerTimer.current) {
+        clearTimeout(slowServerTimer.current);
+      }
+    };
+  }, []);
+
+  // Save playback progress on mount and updates
+  useEffect(() => {
+    savePlaybackProgress({
+      id: movie.id,
+      tmdbId: tmdbId || movie.tmdbId,
+      imdbId: imdbId || movie.imdbId,
+      mediaType,
+      title: movie.title,
+      poster: movie.poster,
+      backdrop: movie.backdrop,
+      currentTime: initialSeekTime,
+      duration: savedProgress?.duration || 0,
+      percentage: savedProgress?.percentage || 5,
+      season: mediaType === "tv" ? season : undefined,
+      episode: mediaType === "tv" ? episode : undefined,
+      updatedAt: Date.now()
+    });
+  }, [movie.id, mediaType, season, episode, tmdbId, imdbId]);
+
+  // Debounced server switcher
+  const handleServerSelect = (idx: number) => {
+    setSelectedProviderIndex(idx);
+    if (serverSwitchTimeout.current) {
+      clearTimeout(serverSwitchTimeout.current);
+    }
+    serverSwitchTimeout.current = window.setTimeout(() => {
+      const prov = STREAM_PROVIDERS[idx];
+      if (prov) {
+        saveProviderPreference(prov.id);
+      }
+      setIframeKey((k) => k + 1);
+    }, 180);
+  };
+
+  const handleNextProvider = () => {
+    const nextIdx = (selectedProviderIndex + 1) % STREAM_PROVIDERS.length;
+    handleServerSelect(nextIdx);
+  };
 
   // Compute current video embed source URL
   const activeTmdb = tmdbId || (movie.id.startsWith("tt") ? "" : movie.id);
@@ -472,48 +231,61 @@ export default function StreamPlayerModal({
     setIframeKey((prev) => prev + 1);
   };
 
-  const handleNextProvider = () => {
-    setSelectedProviderIndex((prev) => (prev + 1) % PROVIDERS.length);
-  };
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreenActive(isFullscreen());
+    };
 
-  const toggleFullscreen = () => {
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleFullscreen = () => {
     const elem = document.getElementById("stream-iframe-container");
     if (elem) {
-      if (!document.fullscreenElement) {
-        elem.requestFullscreen().catch((err) => console.error("Fullscreen error:", err));
-      } else {
-        document.exitFullscreen().catch((err) => console.error("Exit fullscreen error:", err));
-      }
+      toggleFullscreen(elem);
     }
   };
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/92 backdrop-blur-xl flex items-end sm:items-center justify-center p-0 sm:p-6">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: "spring", duration: 0.4 }}
-          className="relative liquid-glass rounded-3xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col my-auto border border-white/20"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 40 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative liquid-glass rounded-t-3xl sm:rounded-3xl w-full max-w-6xl overflow-hidden shadow-2xl flex flex-col my-0 sm:my-auto border-t sm:border border-white/20 max-h-[95vh] sm:max-h-[92vh]"
         >
+          {/* Mobile Grab Handle Bar */}
+          <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
           {/* Specular light highlight */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent z-20 pointer-events-none" />
 
           {/* Header Controls Bar */}
-          <div className="bg-[#0b0f19]/70 backdrop-blur-xl border-b border-white/10 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-[#0b0f19]/70 backdrop-blur-xl border-b border-white/10 px-4 sm:px-5 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 liquid-btn-gold text-black font-black rounded-xl shadow-lg">
-                <Play className="w-4 h-4 fill-black" />
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-black" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-white font-bold text-base tracking-tight line-clamp-1">
+                  <h3 className="text-white font-bold text-sm sm:text-base tracking-tight line-clamp-1">
                     {movie.title}
                   </h3>
                   <span className="text-xs text-gray-400 font-mono">({movie.year})</span>
                 </div>
-                <p className="text-[11px] text-gray-400 font-mono flex items-center gap-2">
+                <p className="text-[10px] sm:text-[11px] text-gray-400 font-mono flex items-center gap-2">
                   <span>TMDB ID: <strong className="text-amber-400">{activeTmdb || "Resolving..."}</strong></span>
                   {activeImdb && (
                     <>
@@ -526,11 +298,11 @@ export default function StreamPlayerModal({
             </div>
 
             {/* Top Right Action Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {onDownloadMp4 && (
                 <button
                   onClick={() => onDownloadMp4(movie)}
-                  className="px-3.5 py-2 liquid-btn-gold text-black rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
+                  className="px-3 sm:px-3.5 py-1.5 sm:py-2 liquid-btn-gold text-black rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
                   title="Download MP4 Video File"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -540,7 +312,7 @@ export default function StreamPlayerModal({
 
               <button
                 onClick={handleNextProvider}
-                className="px-3.5 py-2 liquid-glass-pill hover:bg-white/20 text-amber-300 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-md border border-amber-400/30"
+                className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 liquid-glass-pill hover:bg-white/20 text-amber-300 rounded-xl text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer shadow-md border border-amber-400/30"
                 title="Switch to next server"
               >
                 <span>Switch Server</span>
@@ -549,7 +321,7 @@ export default function StreamPlayerModal({
 
               <button
                 onClick={handleRefresh}
-                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2 sm:p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Reload video stream"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -557,19 +329,19 @@ export default function StreamPlayerModal({
               </button>
 
               <button
-                onClick={toggleFullscreen}
-                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
-                title="Toggle Fullscreen"
+                onClick={handleToggleFullscreen}
+                className="p-2 sm:p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                title={isFullscreenActive ? "Exit Fullscreen" : "Toggle Fullscreen"}
               >
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Fullscreen</span>
+                {isFullscreenActive ? <Minimize2 className="w-3.5 h-3.5 text-imdb" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{isFullscreenActive ? "Exit Fullscreen" : "Fullscreen"}</span>
               </button>
 
               <a
                 href={currentEmbedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                className="p-2 sm:p-2.5 liquid-glass-pill hover:bg-white/20 rounded-xl text-gray-200 hover:text-white transition-all text-xs flex items-center gap-1.5 cursor-pointer"
                 title="Open stream link in new tab"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -577,124 +349,87 @@ export default function StreamPlayerModal({
 
               <button
                 onClick={onClose}
-                className="p-2.5 liquid-glass-pill hover:bg-red-500/30 hover:border-red-500/40 rounded-full text-white transition-all ml-2 cursor-pointer shadow-md"
+                className="p-2 sm:p-2.5 liquid-glass-pill hover:bg-red-500/30 hover:border-red-500/40 rounded-full text-white transition-all ml-1 sm:ml-2 cursor-pointer shadow-md"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
           {/* Player Server Control Bar */}
-          <div className="bg-[#020203] border-b border-white/5 px-5 py-3 flex flex-wrap items-center justify-between gap-4 text-xs">
-            {/* Player Engine Switcher & Anti-Popup Shield Toggle */}
+          <div className="bg-[#020203] border-b border-white/5 px-4 sm:px-5 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+            {/* Anti-Popup Shield Toggle */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="bg-white/5 border border-white/10 p-1 rounded-xl flex items-center gap-1">
-                <button
-                  onClick={() => setPlayerEngine("embed")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    playerEngine === "embed" ? "bg-amber-400 text-black shadow-md" : "text-gray-400 hover:text-white"
+              <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl">
+                {sandboxMode === "off" ? (
+                  <ShieldOff className="w-3.5 h-3.5 ml-1.5 text-rose-400" />
+                ) : (
+                  <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "strict" ? "text-emerald-400" : "text-amber-400"}`} />
+                )}
+                <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Ad Shield:</span>
+                <select
+                  value={sandboxMode}
+                  onChange={(e) => {
+                    const mode = e.target.value as "strict" | "compat" | "off";
+                    setSandboxMode(mode);
+                    try {
+                      localStorage.setItem("bflix_ad_shield_mode", mode);
+                    } catch (err) {}
+                  }}
+                  className={`bg-transparent text-xs font-mono font-bold focus:outline-none cursor-pointer pr-1 py-0.5 rounded ${
+                    sandboxMode === "strict"
+                      ? "text-emerald-400 font-extrabold"
+                      : sandboxMode === "compat"
+                      ? "text-amber-400 font-extrabold"
+                      : "text-rose-400 font-extrabold"
                   }`}
+                  title="Control Ad & Popup Blocking for embed iframe servers"
                 >
-                  <Server className="w-3.5 h-3.5" />
-                  <span>Embed HD Servers</span>
-                </button>
-
-                <button
-                  onClick={() => setPlayerEngine("videojs")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    playerEngine === "videojs" ? "bg-imdb text-black shadow-md" : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  <Video className="w-3.5 h-3.5" />
-                  <span>Video.js HTML5 Player</span>
-                </button>
+                  <option value="off" className="bg-[#121215] text-rose-400 font-bold">
+                    ⚠️ Shield Off (Unrestricted - Ads Allowed)
+                  </option>
+                  <option value="strict" className="bg-[#121215] text-emerald-400 font-bold">
+                    🛡️ Strict Ad Shield (Active - Popups Blocked)
+                  </option>
+                  <option value="compat" className="bg-[#121215] text-amber-400 font-bold">
+                    🛡️ Balanced Shield (No Redirects)
+                  </option>
+                </select>
               </div>
-
-              {playerEngine === "embed" && (
-                <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl">
-                  {sandboxMode === "off" ? (
-                    <ShieldOff className="w-3.5 h-3.5 ml-1.5 text-rose-400" />
-                  ) : (
-                    <ShieldCheck className={`w-3.5 h-3.5 ml-1.5 ${sandboxMode === "strict" ? "text-emerald-400" : "text-amber-400"}`} />
-                  )}
-                  <span className="text-[10px] font-mono text-gray-400 font-bold uppercase hidden sm:inline-block">Ad Shield:</span>
-                  <select
-                    value={sandboxMode}
-                    onChange={(e) => {
-                      const mode = e.target.value as "strict" | "compat" | "off";
-                      setSandboxMode(mode);
-                      try {
-                        localStorage.setItem("bflix_ad_shield_mode", mode);
-                      } catch (err) {}
-                    }}
-                    className={`bg-transparent text-xs font-mono font-bold focus:outline-none cursor-pointer pr-1 py-0.5 rounded ${
-                      sandboxMode === "strict"
-                        ? "text-emerald-400 font-extrabold"
-                        : sandboxMode === "compat"
-                        ? "text-amber-400 font-extrabold"
-                        : "text-rose-400 font-extrabold"
-                    }`}
-                    title="Control Ad & Popup Blocking for embed iframe servers"
-                  >
-                    <option value="off" className="bg-[#121215] text-rose-400 font-bold">
-                      ⚠️ Shield Off (Unrestricted - Ads Allowed)
-                    </option>
-                    <option value="strict" className="bg-[#121215] text-emerald-400 font-bold">
-                      🛡️ Strict Ad Shield (Active - Popups Blocked)
-                    </option>
-                    <option value="compat" className="bg-[#121215] text-amber-400 font-bold">
-                      🛡️ Balanced Shield (No Redirects)
-                    </option>
-                  </select>
-                </div>
-              )}
             </div>
 
-            {/* Server Selector Dropdown & Inspect M3U8 Button (Shown when in embed mode) */}
-            {playerEngine === "embed" && (
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <label htmlFor="server-select" className="text-xs uppercase tracking-wider font-mono text-gray-400 shrink-0 flex items-center gap-1.5 font-bold">
-                  <Server className="w-3.5 h-3.5 text-imdb" />
-                  <span>Select Server:</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="server-select"
-                    value={selectedProviderIndex}
-                    onChange={(e) => {
-                      const idx = Number(e.target.value);
-                      setSelectedProviderIndex(idx);
-                      try {
-                        if (PROVIDERS[idx]) {
-                          localStorage.setItem("bflix_stream_server", PROVIDERS[idx].id);
-                        }
-                      } catch (err) {}
-                    }}
-                    className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3.5 py-2 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-9 appearance-none shadow-md hover:bg-[#202026] transition-all"
-                  >
-                    {PROVIDERS.map((prov, index) => (
-                      <option key={prov.id} value={index} className="bg-[#121215] text-white py-1">
-                        {index + 1}. {prov.name} — [{prov.badge}]
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold hidden sm:inline-block">
-                  {selectedProvider.badge}
-                </span>
-
-                <button
-                  onClick={handleInspectAndExtractM3u8}
-                  disabled={isInspecting}
-                  className="px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border border-amber-400/40 text-amber-300 font-mono font-bold text-xs rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="Inspect current embed server response and extract direct .m3u8 stream to Video.js player engine"
+            {/* Server Selector Dropdown */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label htmlFor="server-select" className="text-xs uppercase tracking-wider font-mono text-gray-400 shrink-0 flex items-center gap-1.5 font-bold">
+                <Server className="w-3.5 h-3.5 text-imdb" />
+                <span className="hidden sm:inline">Select Server:</span>
+              </label>
+              <div className="relative">
+                <select
+                  id="server-select"
+                  value={selectedProviderIndex}
+                  onChange={(e) => handleServerSelect(Number(e.target.value))}
+                  className="bg-[#18181c] text-white border border-white/15 rounded-xl px-3 py-1.5 text-xs font-mono font-bold focus:outline-none focus:border-amber-400 cursor-pointer pr-8 appearance-none shadow-md hover:bg-[#202026] transition-all"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isInspecting ? "animate-spin text-amber-400" : "text-amber-400"}`} />
-                  <span>{isInspecting ? "Inspecting..." : "Inspect & Extract M3U8 to Video.js"}</span>
-                </button>
+                  {STREAM_PROVIDERS.map((prov, index) => (
+                    <option key={prov.id} value={index} className="bg-[#121215] text-white py-1">
+                      {index + 1}. {prov.name} — [{prov.badge}]
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-amber-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
-            )}
+
+              {/* One-Click Next Server Button */}
+              <button
+                onClick={handleNextProvider}
+                className="px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-400/30 text-[11px] font-mono font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Switch to next streaming server"
+              >
+                <span>Next Server</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
 
             {/* Media Mode Toggle (Movie vs TV Show) */}
             <div className="flex items-center gap-2 shrink-0">
@@ -720,7 +455,7 @@ export default function StreamPlayerModal({
               </div>
 
               {mediaType === "tv" && (
-                <div className="flex items-center gap-2 text-xs font-mono">
+                <div className="flex items-center gap-1.5 text-xs font-mono">
                   <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1">
                     <span className="text-gray-500 text-[10px]">S:</span>
                     <select
@@ -755,170 +490,100 @@ export default function StreamPlayerModal({
             </div>
           </div>
 
-          {/* Inspector Status Banner */}
-          {inspectStatus && (
-            <div className="bg-amber-500/15 border-b border-amber-500/30 px-5 py-2.5 text-amber-300 text-xs font-mono font-bold flex items-center justify-between gap-3 animate-pulse">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
-                <span>{inspectStatus}</span>
-              </div>
-              <button
-                onClick={() => setInspectStatus(null)}
-                className="text-amber-400 hover:text-white text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-black/40 border border-amber-500/30"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {/* VideoJS M3U8 Direct HLS Stream Input Bar */}
-          {playerEngine === "videojs" && (
-            <div className="bg-[#121217] border-b border-white/10 p-3 sm:p-4 flex flex-col gap-2.5">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex items-center gap-2 text-xs font-mono font-bold text-imdb shrink-0">
-                  <Radio className="w-4 h-4 animate-pulse" />
-                  <span>M3U8 / HLS Stream URL:</span>
-                </div>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={m3u8Input}
-                    onChange={(e) => setM3u8Input(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleLoadM3u8()}
-                    placeholder="Paste .m3u8 or .m8u HLS stream link (e.g. https://domain.com/stream/index.m3u8)..."
-                    className="w-full bg-[#0a0a0d] text-white border border-white/20 focus:border-amber-400 rounded-xl px-3.5 py-2 text-xs font-mono focus:outline-none pr-16"
-                  />
-                  {m3u8Input && (
-                    <button
-                      onClick={() => setM3u8Input("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs px-2 py-0.5 rounded font-mono"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleLoadM3u8()}
-                  className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-black font-bold font-mono text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <Play className="w-3.5 h-3.5 fill-black" />
-                  <span>Play HLS Stream</span>
-                </button>
-              </div>
-
-              {videoJsError && (
-                <div className="bg-red-500/15 border border-red-500/30 p-3 rounded-xl text-red-300 text-xs font-mono flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 font-bold text-red-400">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Browser Video.js Playback Error ({videoJsError})</span>
-                  </div>
-                  <p className="text-gray-300 text-[11px] leading-relaxed">
-                    <strong>Why IDM works vs Browser Video.js:</strong> Desktop IDM is native software outside the browser sandbox and bypasses browser CORS &amp; anti-hotlinking origin restrictions. Web players (Video.js) running in browser tabs require servers to return <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">Access-Control-Allow-Origin</code> headers.
-                  </p>
-                  <p className="text-amber-300 text-[11px]">
-                    👉 Use our <strong>BFLIX Extension v1.0.2</strong> to download this stream directly in the background!
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Video Player Frame Container */}
           <div
             id="stream-iframe-container"
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
-            {playerEngine === "videojs" ? (
-              <VideoJSPlayer
-                key={activeM3u8Url}
-                initialTime={initialSeekTime}
-                onTimeUpdate={(current, duration) => {
-                  const pct = duration > 0 ? Math.round((current / duration) * 100) : 0;
-                  savePlaybackProgress({
-                    id: movie.id,
-                    tmdbId: movie.tmdbId,
-                    imdbId: movie.imdbId,
-                    mediaType,
-                    title: movie.title,
-                    poster: movie.poster,
-                    backdrop: movie.backdrop,
-                    currentTime: Math.floor(current),
-                    duration: Math.floor(duration),
-                    percentage: pct,
-                    season: mediaType === "tv" ? season : undefined,
-                    episode: mediaType === "tv" ? episode : undefined,
-                    updatedAt: Date.now()
-                  });
-                }}
-                options={{
-                  autoplay: true,
-                  controls: true,
-                  responsive: true,
-                  fluid: true,
-                  playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-                  sources: [
-                    {
-                      src: activeM3u8Url,
-                      type: detectStreamType(activeM3u8Url)
-                    }
-                  ]
-                }}
-                onError={(err) => {
-                  const msg = err?.message || "CORS restriction or invalid M3U8 URL";
-                  setVideoJsError(msg);
-                }}
-              />
-            ) : (
-              <iframe
-                key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${activeTmdb}-${activeImdb}-${sandboxMode}`}
-                src={currentEmbedUrl}
-                title={`${movie.title} Stream Player - ${selectedProvider.name}`}
-                className="w-full h-full border-0"
-                allowFullScreen
-                allow="autoplay; encrypted-media; picture-in-picture; accelerometer; gyroscope; fullscreen"
-                referrerPolicy="no-referrer"
-                sandbox={
-                  sandboxMode === "strict"
-                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads"
-                    : sandboxMode === "compat"
-                    ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-popups"
-                    : undefined
-                }
-              />
-            )}
+            <iframe
+              ref={iframeRef}
+              key={`${selectedProvider.id}-${mediaType}-${season}-${episode}-${iframeKey}-${sandboxMode}`}
+              src={currentEmbedUrl}
+              onLoad={() => {
+                setIsIframeLoading(false);
+                setIsSlowServer(false);
+              }}
+              title={`${movie.title} Stream Player - ${selectedProvider.name}`}
+              className="w-full h-full border-0"
+              allowFullScreen={true}
+              allow="autoplay *; encrypted-media *; picture-in-picture *; accelerometer *; gyroscope *; fullscreen *"
+              referrerPolicy="no-referrer"
+              sandbox={
+                sandboxMode === "strict"
+                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-fullscreen"
+                  : sandboxMode === "compat"
+                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-popups allow-fullscreen"
+                  : undefined
+              }
+            />
+
+            {/* Smooth Non-Blocking Loading Scrim with Slow Server Detection */}
+            <AnimatePresence>
+              {isIframeLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center space-y-3.5 z-30 pointer-events-none"
+                >
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-full border-2 border-imdb/20 border-t-2 border-t-imdb animate-spin" />
+                    <Play className="w-5 h-5 text-imdb absolute inset-0 m-auto fill-imdb" />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-bold text-white font-mono tracking-wide">
+                      Connecting to {selectedProvider.name}
+                    </p>
+                    <p className="text-xs text-gray-400 font-mono">
+                      {mediaType === "tv" ? `Season ${season} • Episode ${episode}` : movie.title}
+                    </p>
+                  </div>
+
+                  {isSlowServer && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="pt-2 pointer-events-auto"
+                    >
+                      <button
+                        onClick={handleNextProvider}
+                        className="px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-mono font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xl backdrop-blur-md"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Server taking long? Try Server {(selectedProviderIndex + 1) % STREAM_PROVIDERS.length + 1}</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Footer Notice & Troubleshooting Tips */}
-          <div className="bg-[#121215] border-t border-white/10 px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono">
-            <div className="flex items-center gap-3 text-emerald-400">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>Connected to {selectedProvider.name}</span>
-                {playerEngine === "embed" && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                    sandboxMode === "strict"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : sandboxMode === "compat"
-                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                      : "bg-rose-500/10 text-rose-400 border-rose-500/30"
-                  }`}>
-                    {sandboxMode === "strict" ? "Strict Ad Shield (Active)" : sandboxMode === "compat" ? "Balanced Shield" : "Shield Off (All Ads Allowed)"}
-                  </span>
-                )}
-              </div>
+          {/* Footer Bar */}
+          <div className="bg-[#121215] border-t border-white/10 px-4 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between gap-3 text-[11px] font-mono safe-bottom">
+            <div className="flex items-center gap-2 text-emerald-400">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span className="truncate">Connected to {selectedProvider.name}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border hidden sm:inline-block ${
+                sandboxMode === "strict"
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : sandboxMode === "compat"
+                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  : "bg-rose-500/10 text-rose-400 border-rose-500/30"
+              }`}>
+                {sandboxMode === "strict" ? "Strict Ad Shield (Active)" : sandboxMode === "compat" ? "Balanced Shield" : "Shield Off"}
+              </span>
             </div>
-            
-            <div className="flex items-center gap-2 text-amber-400/90 text-center sm:text-right">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Media unavailable on this server? Click </span>
-              <button
-                onClick={handleNextProvider}
-                className="underline hover:text-amber-300 font-bold cursor-pointer"
-              >
-                Switch Server
-              </button>
-              <span> to try MultiEmbed, VidSrc.cc, or Embed.su.</span>
-            </div>
+
+            <button
+              onClick={handleNextProvider}
+              className="px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-400/30 text-xs font-mono font-bold transition-all flex items-center gap-1 cursor-pointer shrink-0"
+              title="Switch to next server"
+            >
+              <span>Next Server</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </motion.div>
       </div>

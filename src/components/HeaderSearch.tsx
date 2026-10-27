@@ -41,29 +41,26 @@ export default function HeaderSearch({ theme = "dark", onSelectMovie }: HeaderSe
       return;
     }
 
-    let isMounted = true;
+    const controller = new AbortController();
     setIsLoading(true);
 
     const timer = setTimeout(async () => {
       try {
-        const res = await searchMediaWithPagination(trimmed, 1, "multi");
-        if (isMounted) {
-          setSuggestions((res.movies || []).slice(0, 5));
-          setTotalResults(res.totalResults || 0);
-          setIsLoading(false);
-          setIsOpen(true);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error("Header search error:", err);
-          setSuggestions([]);
-          setIsLoading(false);
-        }
+        const res = await searchMediaWithPagination(trimmed, 1, "multi", controller.signal);
+        setSuggestions((res.movies || []).slice(0, 5));
+        setTotalResults(res.totalResults || 0);
+        setIsLoading(false);
+        setIsOpen(true);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("Header search error:", err);
+        setSuggestions([]);
+        setIsLoading(false);
       }
     }, 250);
 
     return () => {
-      isMounted = false;
+      controller.abort();
       clearTimeout(timer);
     };
   }, [searchQuery]);

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, Suspense, lazy } from "react";
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { Movie } from "./types";
-import { Compass, Bookmark, Sparkles, Sun, Moon } from "lucide-react";
+import { Compass, Bookmark, Sun, Moon, Search, Film, Tv } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import HeaderSearch from "./components/HeaderSearch";
+import MobileSearchModal from "./components/MobileSearchModal";
 
 // Lazy-loaded routes and modals for optimized initial load
 const BrowsePage = lazy(() => import("./pages/BrowsePage"));
@@ -74,6 +75,7 @@ export default function App() {
   const [streamEpisode, setStreamEpisode] = useState<number>(1);
   const [streamInitialTime, setStreamInitialTime] = useState<number>(0);
   const [downloadModalMovie, setDownloadModalMovie] = useState<Movie | null>(null);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const handleStartStream = (
     movie: Movie,
@@ -129,7 +131,8 @@ export default function App() {
     }
   };
 
-  const isBrowseActive = location.pathname === "/" || location.pathname.startsWith("/category");
+  const isBrowseActive = location.pathname === "/" || (location.pathname.startsWith("/category") && !location.pathname.includes("tv"));
+  const isSeriesActive = location.pathname.includes("tv");
   const isAiActive = location.pathname === "/vibe-finder";
   const isWatchlistActive = location.pathname === "/watchlist";
 
@@ -154,136 +157,192 @@ export default function App() {
       <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none z-10" />
 
       {/* Modern Liquid Glass Top Navigation Header */}
-      <header className={`sticky top-0 z-30 px-4 sm:px-8 py-3.5 shadow-[0_4px_30px_rgba(0,0,0,0.15)] transition-colors duration-300 ${
-        theme === "light" ? "bg-white/70 backdrop-blur-2xl border-b border-slate-900/10" : "bg-[#060913]/60 backdrop-blur-2xl border-b border-white/10"
+      <header className={`sticky top-0 z-30 px-3.5 sm:px-8 py-2.5 sm:py-3.5 shadow-[0_4px_30px_rgba(0,0,0,0.15)] transition-colors duration-300 ${
+        theme === "light" ? "bg-white/80 backdrop-blur-2xl border-b border-slate-900/10" : "bg-[#060913]/70 backdrop-blur-2xl border-b border-white/10"
       }`}>
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
-          {/* Brand Logo & Tagline */}
-          <Link to="/" className="flex items-center gap-2.5 cursor-pointer group shrink-0">
-            <div className="bg-gradient-to-r from-imdb to-amber-500 font-black px-3 py-1 rounded-xl text-xl italic tracking-tight shadow-[0_4px_20px_rgba(245,197,24,0.4)] border border-white/30 select-none inline-flex items-center backdrop-blur-md">
-              <span className="text-white font-black font-extrabold mr-[3px]">B</span>
-              <span className="text-black font-black">Flix</span>
-            </div>
-            <span className={`text-xs font-semibold tracking-widest uppercase border-l pl-2.5 hidden sm:inline-block ${
-              theme === "light" ? "text-slate-500 border-slate-300" : "text-gray-300 border-white/15"
-            }`}>
-              {t("tagline")}
-            </span>
-          </Link>
+        <div className="max-w-7xl mx-auto w-full">
+          {/* Mobile Top App Bar (< md) */}
+          <div className="flex md:hidden items-center justify-between w-full h-10">
+            <Link to="/" className="flex items-center gap-2 cursor-pointer select-none group">
+              <div className="bg-gradient-to-r from-imdb to-amber-500 px-2.5 py-1 rounded-xl shadow-[0_4px_16px_rgba(245,197,24,0.4)] border border-white/30 select-none inline-flex items-center justify-center backdrop-blur-md">
+                <img
+                  src="/logo.png"
+                  alt="BFlix"
+                  className="h-8 w-auto object-contain select-none"
+                />
+              </div>
+            </Link>
 
-          {/* Header Search Bar */}
-          <div className="w-full md:max-w-xs lg:max-w-sm xl:max-w-md shrink-0 sm:shrink">
-            <HeaderSearch theme={theme} onSelectMovie={setSelectedMovie} />
+            <div className="flex items-center gap-2">
+              {/* Quick Search Button */}
+              <button
+                onClick={() => setIsMobileSearchOpen(true)}
+                className={`w-8 h-8 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                  theme === "light"
+                    ? "bg-slate-200/70 border-slate-300 text-slate-700"
+                    : "bg-white/[0.06] border-white/15 text-imdb"
+                }`}
+                aria-label="Open Search"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`w-8 h-8 rounded-full border transition-all cursor-pointer flex items-center justify-center ${
+                  theme === "light"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600"
+                    : "bg-white/[0.06] border-white/15 text-amber-400"
+                }`}
+                title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                aria-label="Toggle Theme"
+              >
+                {theme === "light" ? <Sun className="w-4 h-4 text-amber-500 fill-amber-500/20" /> : <Moon className="w-4 h-4 text-amber-400" />}
+              </button>
+
+              {/* Language Switcher */}
+              <button
+                onClick={() => changeLanguage(currentLang.startsWith("en") ? "km" : "en")}
+                className="w-8 h-8 rounded-full text-[10px] font-bold border bg-white/[0.06] border-white/15 text-gray-200 cursor-pointer"
+              >
+                {currentLang.startsWith("en") ? "EN" : "ខ្មែរ"}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap justify-center shrink-0">
-            {/* Tab Selection Page Navigation */}
-            <nav className={`flex items-center gap-1 sm:gap-2 p-1 backdrop-blur-xl rounded-full shadow-inner border ${
-              theme === "light" ? "bg-slate-200/60 border-slate-300/60" : "bg-white/[0.04] border-white/10"
-            }`}>
-              <Link
-                to="/"
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
-                  isBrowseActive
-                    ? theme === "light"
-                      ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
-                      : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
-                      : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                <span>{t("nav.movies")}</span>
-              </Link>
+          {/* Desktop Header (md+) */}
+          <div className="hidden md:flex items-center justify-between w-full gap-4">
+            {/* Brand Logo & Tagline */}
+            <Link to="/" className="flex items-center gap-2.5 cursor-pointer group shrink-0">
+              <div className="bg-gradient-to-r from-imdb to-amber-500 px-3 py-1.5 rounded-xl shadow-[0_4px_20px_rgba(245,197,24,0.4)] border border-white/30 select-none inline-flex items-center justify-center backdrop-blur-md transition-transform group-hover:scale-105">
+                <img
+                  src="/logo.png"
+                  alt="BFlix"
+                  className="h-7 sm:h-8 w-auto object-contain select-none"
+                />
+              </div>
+              <span className={`text-xs font-semibold tracking-widest uppercase border-l pl-2.5 ${
+                theme === "light" ? "text-slate-500 border-slate-300" : "text-gray-300 border-white/15"
+              }`}>
+                {t("tagline")}
+              </span>
+            </Link>
 
-              <Link
-                to="/vibe-finder"
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
-                  isAiActive
-                    ? theme === "light"
-                      ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
-                      : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
-                      : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{t("nav.aiFinder")}</span>
-              </Link>
+            {/* Desktop Centered Search */}
+            <div className="w-full md:max-w-xs lg:max-w-sm xl:max-w-md shrink">
+              <HeaderSearch theme={theme} onSelectMovie={setSelectedMovie} />
+            </div>
 
-              <Link
-                to="/watchlist"
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
-                  isWatchlistActive
-                    ? theme === "light"
-                      ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
-                      : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
-                      : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
-                }`}
-              >
-                <Bookmark className="w-3.5 h-3.5" />
-                <span>{t("nav.watchlist")}</span>
-                {watchlist.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-imdb text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-slate-900 shadow">
-                    {watchlist.length}
-                  </span>
-                )}
-              </Link>
-            </nav>
+            {/* Desktop Navigation & Controls */}
+            <div className="flex items-center gap-3 shrink-0">
+              <nav className={`flex items-center gap-1 p-1 backdrop-blur-xl rounded-full border ${
+                theme === "light" ? "bg-slate-200/60 border-slate-300/60" : "bg-white/[0.04] border-white/10"
+              }`}>
+                <Link
+                  to="/"
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
+                    isBrowseActive && !isSeriesActive
+                      ? theme === "light"
+                        ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
+                        : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
+                      : theme === "light"
+                        ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
+                        : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                  }`}
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                  <span>{t("nav.movies")}</span>
+                </Link>
 
-            {/* Theme Switcher Toggle Button */}
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-full border transition-all cursor-pointer flex items-center justify-center shadow-inner ${
-                theme === "light"
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-600 hover:bg-amber-500/20"
-                  : "bg-white/[0.05] backdrop-blur-xl border-white/15 text-amber-400 hover:bg-white/10"
-              }`}
-              title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-              aria-label="Toggle Theme"
-            >
-              {theme === "light" ? <Sun className="w-4 h-4 text-amber-500 fill-amber-500/20" /> : <Moon className="w-4 h-4 text-amber-400" />}
-            </button>
+                <Link
+                  to="/vibe-finder"
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none ${
+                    isAiActive
+                      ? theme === "light"
+                        ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
+                        : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
+                      : theme === "light"
+                        ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
+                        : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>{t("nav.aiFinder")}</span>
+                </Link>
 
-            {/* Language Switcher Switcher Bar */}
-            <div className={`flex items-center gap-1 backdrop-blur-xl border rounded-full p-1 shadow-inner ${
-              theme === "light" ? "bg-slate-200/60 border-slate-300/60" : "bg-white/[0.05] border-white/15"
-            }`}>
+                <Link
+                  to="/watchlist"
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all select-none relative ${
+                    isWatchlistActive
+                      ? theme === "light"
+                        ? "bg-white text-black font-bold border border-slate-300 shadow-sm"
+                        : "bg-gradient-to-r from-white/20 to-white/10 text-imdb font-bold border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]"
+                      : theme === "light"
+                        ? "text-slate-600 hover:text-slate-900 border border-transparent hover:bg-white/50"
+                        : "text-gray-400 hover:text-white border border-transparent hover:bg-white/5"
+                  }`}
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>{t("nav.watchlist")}</span>
+                  {watchlist.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-imdb text-black text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-slate-900 shadow">
+                      {watchlist.length}
+                    </span>
+                  )}
+                </Link>
+              </nav>
+
+              {/* Desktop Theme Switcher */}
               <button
-                onClick={() => changeLanguage("en")}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                  currentLang.startsWith("en")
-                    ? "liquid-btn-gold text-black shadow-md"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-gray-400 hover:text-white"
+                onClick={toggleTheme}
+                className={`p-2 rounded-full border transition-all cursor-pointer flex items-center justify-center shadow-inner ${
+                  theme === "light"
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 hover:bg-amber-500/20"
+                    : "bg-white/[0.05] backdrop-blur-xl border-white/15 text-amber-400 hover:bg-white/10"
                 }`}
+                title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+                aria-label="Toggle Theme"
               >
-                EN
+                {theme === "light" ? <Sun className="w-4 h-4 text-amber-500 fill-amber-500/20" /> : <Moon className="w-4 h-4 text-amber-400" />}
               </button>
-              <button
-                onClick={() => changeLanguage("km")}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                  currentLang.startsWith("km")
-                    ? "liquid-btn-gold text-black shadow-md"
-                    : theme === "light"
-                      ? "text-slate-600 hover:text-slate-900"
-                      : "text-gray-400 hover:text-white"
-                }`}
-              >
-                ខ្មែរ
-              </button>
+
+              {/* Desktop Language Switcher */}
+              <div className={`flex items-center gap-1 backdrop-blur-xl border rounded-full p-1 shadow-inner ${
+                theme === "light" ? "bg-slate-200/60 border-slate-300/60" : "bg-white/[0.05] border-white/15"
+              }`}>
+                <button
+                  onClick={() => changeLanguage("en")}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                    currentLang.startsWith("en")
+                      ? "liquid-btn-gold text-black shadow-md"
+                      : theme === "light"
+                        ? "text-slate-600 hover:text-slate-900"
+                        : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => changeLanguage("km")}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                    currentLang.startsWith("km")
+                      ? "liquid-btn-gold text-black shadow-md"
+                      : theme === "light"
+                        ? "text-slate-600 hover:text-slate-900"
+                        : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  ខ្មែរ
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Container with Page Routes */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-8 py-4 sm:py-8 pb-24 md:pb-8">
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route
@@ -388,7 +447,7 @@ export default function App() {
       </Suspense>
 
       {/* Footer credits */}
-      <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-4 mt-12">
+      <footer className="border-t border-white/5 bg-[#020203] px-6 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-gray-500 gap-4 mt-12 mb-16 md:mb-0">
         <span>{t("footer.rights")}</span>
         <div className="flex gap-4 items-center uppercase tracking-wider text-xs">
           <a
@@ -402,6 +461,82 @@ export default function App() {
           </a>
         </div>
       </footer>
+
+      {/* Native Mobile Bottom Navigation Bar (Tab Bar) */}
+      <nav className={`fixed bottom-0 left-0 right-0 z-40 md:hidden border-t safe-bottom transition-colors duration-300 ${
+        theme === "light"
+          ? "bg-white/95 backdrop-blur-2xl border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]"
+          : "bg-[#05070d]/95 backdrop-blur-2xl border-white/10 shadow-[0_-4px_25px_rgba(0,0,0,0.6)]"
+      }`}>
+        <div className="grid grid-cols-4 h-14 items-center">
+          {/* Tab 1: Movies */}
+          <Link
+            to="/"
+            className={`flex flex-col items-center justify-center h-full transition-colors ${
+              isBrowseActive && !isSeriesActive
+                ? "text-imdb font-bold"
+                : theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Film className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 tracking-tight font-medium">Movies</span>
+          </Link>
+
+          {/* Tab 2: TV Series */}
+          <Link
+            to="/category/trending_tv"
+            className={`flex flex-col items-center justify-center h-full transition-colors ${
+              isSeriesActive
+                ? "text-imdb font-bold"
+                : theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Tv className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 tracking-tight font-medium">Series</span>
+          </Link>
+
+          {/* Tab 3: Search */}
+          <button
+            onClick={() => setIsMobileSearchOpen(true)}
+            className={`flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
+              isMobileSearchOpen
+                ? "text-imdb font-bold"
+                : theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <Search className="w-5 h-5" />
+            <span className="text-[10px] mt-0.5 tracking-tight font-medium">Search</span>
+          </button>
+
+          {/* Tab 4: Watchlist */}
+          <Link
+            to="/watchlist"
+            className={`flex flex-col items-center justify-center h-full transition-colors ${
+              isWatchlistActive
+                ? "text-imdb font-bold"
+                : theme === "light" ? "text-slate-500 hover:text-slate-800" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <div className="relative">
+              <Bookmark className="w-5 h-5" />
+              {watchlist.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 bg-imdb text-black text-[9px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow">
+                  {watchlist.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] mt-0.5 tracking-tight font-medium">Watchlist</span>
+          </Link>
+        </div>
+      </nav>
+
+      {/* Full-Screen Mobile Search Sheet Modal */}
+      <MobileSearchModal
+        isOpen={isMobileSearchOpen}
+        onClose={() => setIsMobileSearchOpen(false)}
+        onSelectMovie={setSelectedMovie}
+        theme={theme}
+      />
     </div>
   );
 }

@@ -37,16 +37,22 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
     const tvId = detail?.tmdbId || movie.tmdbId || movie.id;
     if (!tvId) return;
 
+    const controller = new AbortController();
     setEpisodesLoading(true);
-    fetchTvSeasonEpisodes(tvId, selectedSeason)
+    fetchTvSeasonEpisodes(tvId, selectedSeason, controller.signal)
       .then((data) => {
         setEpisodes(data);
         setEpisodesLoading(false);
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.warn("Episodes load error:", err);
         setEpisodesLoading(false);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [isTv, detail?.tmdbId, movie.tmdbId, movie.id, selectedSeason]);
 
   // Cycling reassuring load messages
@@ -60,47 +66,47 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
 
   // Fetch detailed movie analysis on mount
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
 
-    fetchMovieDetails(movie.id)
+    fetchMovieDetails(movie.id, undefined, controller.signal)
       .then((detailData) => {
-        if (isMounted) {
-          setDetail(detailData);
-          setLoading(false);
-        }
+        setDetail(detailData);
+        setLoading(false);
       })
       .catch((err) => {
-        if (isMounted) {
-          console.error(err);
-          setError(err.message || "An unexpected error occurred while loading details.");
-          setLoading(false);
-        }
+        if (err?.name === "AbortError") return;
+        console.error(err);
+        setError(err.message || "An unexpected error occurred while loading details.");
+        setLoading(false);
       });
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, [movie.id]);
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
         {/* Modal Window Container */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", duration: 0.5 }}
-          className="relative bg-[#020203] border border-white/10 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl shadow-black/90 my-8 flex flex-col max-h-[90vh]"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative bg-[#020203] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl shadow-black/90 sm:my-8 flex flex-col max-h-[92vh] sm:max-h-[90vh]"
         >
+          {/* Mobile Grab Handle Bar */}
+          <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
           {/* Header Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2.5 bg-black/80 hover:bg-white/10 border border-white/10 rounded-full text-white transition-colors z-50"
+            className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 sm:p-2.5 bg-black/80 hover:bg-white/10 border border-white/10 rounded-full text-white transition-colors z-50 cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {loading ? (
@@ -151,7 +157,7 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
             /* Main Loaded Content Details */
             <div className="overflow-y-auto flex-grow">
               {/* Giant Banner Backdrop Header */}
-              <div className="relative h-[240px] sm:h-[300px] w-full flex items-end">
+              <div className="relative min-h-[200px] sm:h-[300px] w-full flex items-end">
                 <div className="absolute inset-0 select-none overflow-hidden">
                   <img
                     src={detail.backdrop || detail.poster}
@@ -161,9 +167,9 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
                   <div className="absolute inset-0 bg-gradient-to-t from-[#020203] via-[#020203]/80 to-transparent" />
                 </div>
 
-                <div className="relative p-5 sm:p-8 z-10 w-full flex flex-row gap-5 sm:gap-7 items-end">
+                <div className="relative p-4 sm:p-8 z-10 w-full flex flex-row gap-4 sm:gap-7 items-end">
                   {/* Poster Thumbnail Overlay */}
-                  <div className="w-24 sm:w-44 shrink-0 aspect-[2/3] rounded-2xl overflow-hidden border border-white/20 shadow-2xl shadow-black/90 bg-[#121214] relative group">
+                  <div className="w-20 sm:w-44 shrink-0 aspect-[2/3] rounded-xl sm:rounded-2xl overflow-hidden border border-white/20 shadow-2xl shadow-black/90 bg-[#121214] relative group">
                     <img
                       src={detail.poster || movie.poster}
                       alt={detail.title}
@@ -176,45 +182,45 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
                   </div>
 
                   {/* Text Header */}
-                  <div className="flex-grow space-y-2">
-                    <div className="flex flex-wrap gap-2">
+                  <div className="flex-grow space-y-1.5 sm:space-y-2">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
                       {detail.genres.map((g, i) => (
                         <span
                           key={i}
-                          className="text-[10px] font-mono tracking-wider uppercase text-imdb bg-imdb/10 border border-imdb/20 px-2.5 py-0.5 rounded"
+                          className="text-[9px] sm:text-[10px] font-mono tracking-wider uppercase text-imdb bg-imdb/10 border border-imdb/20 px-2 sm:px-2.5 py-0.5 rounded"
                         >
                           {g}
                         </span>
                       ))}
                     </div>
 
-                    <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tighter leading-none uppercase">
+                    <h2 className="text-xl sm:text-5xl font-black text-white tracking-tighter leading-tight sm:leading-none uppercase line-clamp-2">
                       {detail.title}
                     </h2>
 
                     {detail.tagline && (
-                      <p className="text-xs sm:text-sm text-gray-400 font-sans italic tracking-wide">
+                      <p className="text-xs sm:text-sm text-gray-400 font-sans italic tracking-wide line-clamp-1 sm:line-clamp-none">
                         "{detail.tagline}"
                       </p>
                     )}
 
                     {/* Metadata Badges */}
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-gray-400 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] sm:text-xs font-mono text-gray-400 pt-0.5 sm:pt-1">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                        <Calendar className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-500" />
                         {detail.year}
                       </span>
                       <span className="text-gray-700">•</span>
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-gray-500" />
+                        <Clock className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-500" />
                         {detail.runtime}
                       </span>
                       <span className="text-gray-700">•</span>
                       <span className="flex items-center gap-1 text-imdb font-bold">
-                        <Star className="w-3.5 h-3.5 fill-imdb stroke-imdb" />
+                        <Star className="w-3 sm:w-3.5 h-3 sm:h-3.5 fill-imdb stroke-imdb" />
                         {detail.imdbRating} <span className="text-gray-500 font-normal">/ 10</span>
                         {detail.imdbVotes && (
-                          <span className="text-gray-500 font-normal">({detail.imdbVotes} votes)</span>
+                          <span className="text-gray-500 font-normal hidden sm:inline">({detail.imdbVotes} votes)</span>
                         )}
                       </span>
                     </div>
@@ -482,6 +488,28 @@ export default function MovieDetailModal({ movie, onClose, onStream, onDownloadM
                     </a>
                   </div>
                 </div>
+              </div>
+
+              {/* Mobile Sticky Action Bar */}
+              <div className="sm:hidden sticky bottom-0 bg-[#070913]/95 backdrop-blur-xl border-t border-white/10 p-3.5 safe-bottom flex gap-2.5 z-30">
+                {onStream && (
+                  <button
+                    onClick={() => onStream(movie, isTv ? selectedSeason : undefined)}
+                    className="flex-1 flex items-center justify-center gap-2 liquid-btn-gold text-black text-sm font-extrabold py-3 px-4 rounded-xl shadow-lg cursor-pointer"
+                  >
+                    <Play className="w-4 h-4 fill-black" />
+                    <span>Watch Stream</span>
+                  </button>
+                )}
+                {onDownloadMp4 && (
+                  <button
+                    onClick={() => onDownloadMp4(movie)}
+                    className="p-3 liquid-glass-pill text-white rounded-xl border border-white/10 hover:border-imdb/50 flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Download MP4"
+                  >
+                    <Download className="w-4 h-4 text-imdb" />
+                  </button>
+                )}
               </div>
             </div>
           ) : null}
