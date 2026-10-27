@@ -30,12 +30,10 @@ import {
   ExternalLink,
   AlertCircle,
   Maximize,
-  Minimize,
-  Smartphone
+  Minimize
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { isMobileDevice } from "../utils/mobileDetect";
 
 interface WatchPageProps {
   watchlist: Movie[];
@@ -408,16 +406,16 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
 
-            {/* Direct Player Popout Button (Mobile & Desktop) */}
+            {/* Direct Player Button (Placed next to Fullscreen) */}
             <a
               href={currentEmbedUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer border border-white/10 flex items-center gap-1.5"
-              title="Open stream directly in external tab (useful if mobile browser blocks embed)"
+              className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-400/30 text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="Open stream directly in external tab"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-imdb" />
-              <span className="hidden sm:inline text-xs font-mono font-bold">Popout</span>
+              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              <span>Direct Player</span>
             </a>
 
             {/* Fullscreen Button */}
@@ -518,48 +516,6 @@ export default function WatchPage({ watchlist, onToggleWatchlist }: WatchPagePro
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Mobile Quick Server Switcher & Direct Player Bar */}
-        <div className="bg-[#0b0e17] border-t border-white/10 px-3 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-1.5 shrink-0 text-gray-400 font-mono text-[11px] font-bold">
-            <Server className="w-3.5 h-3.5 text-imdb shrink-0" />
-            <span className="hidden sm:inline">Quick Servers:</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {STREAM_PROVIDERS.map((prov, index) => {
-              const isActive = selectedProviderIndex === index;
-              return (
-                <button
-                  key={prov.id}
-                  onClick={() => handleServerSelect(index)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[36px] ${
-                    isActive
-                      ? "bg-imdb text-black shadow-md shadow-amber-500/20"
-                      : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
-                  }`}
-                >
-                  <span>{index + 1}. {prov.name}</span>
-                  {prov.isMobileRecommended && !isActive && (
-                    <span className="text-[9px] px-1 py-0.2 bg-amber-400/20 text-amber-300 rounded font-normal">HD</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Direct Player Link */}
-          <a
-            href={currentEmbedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-400/30 text-xs font-mono font-bold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 cursor-pointer min-h-[36px] ml-auto"
-            title="Open direct player in new tab"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-            <span>Direct Player</span>
-          </a>
         </div>
 
         {/* TV Quick Next/Prev Episode Controls & Indicator */}
