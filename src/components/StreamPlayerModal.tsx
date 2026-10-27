@@ -87,6 +87,7 @@ export default function StreamPlayerModal({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const serverSwitchTimeout = useRef<number | null>(null);
   const slowServerTimer = useRef<number | null>(null);
+  const iframeLoadSafetyTimer = useRef<number | null>(null);
 
   // Ad Blocker: Window-Level Popup Shield Singleton
   useEffect(() => {
@@ -149,17 +150,25 @@ export default function StreamPlayerModal({
     };
   }, [movie.id]);
 
-  // Loading & Slow Server Tracker
+  // Loading & Slow Server Tracker with Mobile Safety Timeout
   useEffect(() => {
     setIsIframeLoading(true);
     setIsSlowServer(false);
 
+    // Safety fallback: auto-dismiss loading scrim after 2.5s maximum
+    // Prevents mobile users from being blocked by stalled cross-origin iframe onLoad events
+    if (iframeLoadSafetyTimer.current) clearTimeout(iframeLoadSafetyTimer.current);
+    iframeLoadSafetyTimer.current = window.setTimeout(() => {
+      setIsIframeLoading(false);
+    }, 2500);
+
     if (slowServerTimer.current) clearTimeout(slowServerTimer.current);
     slowServerTimer.current = window.setTimeout(() => {
       setIsSlowServer(true);
-    }, 8000);
+    }, 7000);
 
     return () => {
+      if (iframeLoadSafetyTimer.current) clearTimeout(iframeLoadSafetyTimer.current);
       if (slowServerTimer.current) clearTimeout(slowServerTimer.current);
     };
   }, [selectedProvider.id, mediaType, season, episode, iframeKey, sandboxMode]);
@@ -175,6 +184,9 @@ export default function StreamPlayerModal({
       }
       if (slowServerTimer.current) {
         clearTimeout(slowServerTimer.current);
+      }
+      if (iframeLoadSafetyTimer.current) {
+        clearTimeout(iframeLoadSafetyTimer.current);
       }
     };
   }, []);
@@ -493,6 +505,12 @@ export default function StreamPlayerModal({
           {/* Video Player Frame Container */}
           <div
             id="stream-iframe-container"
+            onClick={() => {
+              if (isIframeLoading) setIsIframeLoading(false);
+            }}
+            onTouchStart={() => {
+              if (isIframeLoading) setIsIframeLoading(false);
+            }}
             className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
           >
             <iframe
@@ -506,37 +524,43 @@ export default function StreamPlayerModal({
               title={`${movie.title} Stream Player - ${selectedProvider.name}`}
               className="w-full h-full border-0"
               allowFullScreen={true}
-              allow="autoplay *; encrypted-media *; picture-in-picture *; accelerometer *; gyroscope *; fullscreen *"
-              referrerPolicy="no-referrer"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope"
+              playsInline={true}
+              referrerPolicy="origin-when-cross-origin"
               sandbox={
                 sandboxMode === "strict"
-                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-fullscreen"
+                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-fullscreen allow-top-navigation-by-user-activation"
                   : sandboxMode === "compat"
-                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-popups allow-fullscreen"
+                  ? "allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-downloads allow-popups allow-fullscreen allow-top-navigation-by-user-activation"
                   : undefined
               }
             />
 
-            {/* Smooth Non-Blocking Loading Scrim with Slow Server Detection */}
+            {/* Smooth Loading Scrim with Quick Tap-to-Reveal & Slow Server Detection */}
             <AnimatePresence>
               {isIframeLoading && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="absolute inset-0 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center space-y-3.5 z-30 pointer-events-none"
+                  transition={{ duration: 0.2 }}
+                  onClick={() => setIsIframeLoading(false)}
+                  onTouchStart={() => setIsIframeLoading(false)}
+                  className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-30 cursor-pointer select-none"
                 >
                   <div className="relative">
                     <div className="w-14 h-14 rounded-full border-2 border-imdb/20 border-t-2 border-t-imdb animate-spin" />
                     <Play className="w-5 h-5 text-imdb absolute inset-0 m-auto fill-imdb" />
                   </div>
-                  <div className="text-center space-y-1">
+                  <div className="text-center space-y-1 px-4">
                     <p className="text-sm font-bold text-white font-mono tracking-wide">
                       Connecting to {selectedProvider.name}
                     </p>
                     <p className="text-xs text-gray-400 font-mono">
                       {mediaType === "tv" ? `Season ${season} • Episode ${episode}` : movie.title}
+                    </p>
+                    <p className="text-[11px] text-amber-400/80 font-mono pt-1">
+                      Tap anywhere if stream doesn't start automatically
                     </p>
                   </div>
 
@@ -547,7 +571,10 @@ export default function StreamPlayerModal({
                       className="pt-2 pointer-events-auto"
                     >
                       <button
-                        onClick={handleNextProvider}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNextProvider();
+                        }}
                         className="px-4 py-2 rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-mono font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xl backdrop-blur-md"
                       >
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -558,6 +585,48 @@ export default function StreamPlayerModal({
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+
+          {/* Mobile Quick Server Switcher & Direct Player Bar */}
+          <div className="bg-[#0b0e17] border-t border-white/10 px-3 py-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 shrink-0 text-gray-400 font-mono text-[11px] font-bold">
+              <Server className="w-3.5 h-3.5 text-imdb shrink-0" />
+              <span className="hidden sm:inline">Quick Servers:</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {STREAM_PROVIDERS.map((prov, index) => {
+                const isActive = selectedProviderIndex === index;
+                return (
+                  <button
+                    key={prov.id}
+                    onClick={() => handleServerSelect(index)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 min-h-[36px] ${
+                      isActive
+                        ? "bg-imdb text-black shadow-md shadow-amber-500/20"
+                        : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
+                    }`}
+                  >
+                    <span>{index + 1}. {prov.name}</span>
+                    {prov.isMobileRecommended && !isActive && (
+                      <span className="text-[9px] px-1 py-0.2 bg-amber-400/20 text-amber-300 rounded font-normal">HD</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Direct Player Link */}
+            <a
+              href={currentEmbedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-400/30 text-xs font-mono font-bold whitespace-nowrap flex items-center gap-1.5 transition-all shrink-0 cursor-pointer min-h-[36px] ml-auto"
+              title="Open direct player in new tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              <span>Direct Player</span>
+            </a>
           </div>
 
           {/* Footer Bar */}

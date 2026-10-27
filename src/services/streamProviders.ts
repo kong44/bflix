@@ -7,6 +7,7 @@ export interface StreamProvider {
   id: string;
   name: string;
   badge: string;
+  isMobileRecommended?: boolean;
   getMovieUrl: (tmdbId: string, imdbId: string, fallbackId: string) => string;
   getTvUrl: (tmdbId: string, imdbId: string, fallbackId: string, season: number, episode: number) => string;
 }
@@ -16,6 +17,7 @@ export const STREAM_PROVIDERS: StreamProvider[] = [
     id: "vidsrc_me",
     name: "VidSrc.me",
     badge: "DEFAULT HD",
+    isMobileRecommended: true,
     getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.me/embed/movie?tmdb=${tmdb || id}${imdb ? `&imdb=${imdb}` : ""}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.me/embed/tv?tmdb=${tmdb || id}&season=${s}&episode=${e}`
   },
@@ -30,6 +32,7 @@ export const STREAM_PROVIDERS: StreamProvider[] = [
     id: "vidsrc_cc",
     name: "VidSrc.cc",
     badge: "FAST 1080P",
+    isMobileRecommended: true,
     getMovieUrl: (tmdb, imdb, id) => `https://vidsrc.cc/v2/embed/movie/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://vidsrc.cc/v2/embed/tv/${tmdb || id}/${s}/${e}`
   },
@@ -37,6 +40,7 @@ export const STREAM_PROVIDERS: StreamProvider[] = [
     id: "embed_su",
     name: "Embed.su",
     badge: "AUTO SUB",
+    isMobileRecommended: true,
     getMovieUrl: (tmdb, imdb, id) => `https://embed.su/embed/movie/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://embed.su/embed/tv/${tmdb || id}/${s}/${e}`
   },
@@ -86,6 +90,7 @@ export const STREAM_PROVIDERS: StreamProvider[] = [
     id: "autoembed",
     name: "AutoEmbed",
     badge: "SERVER 8",
+    isMobileRecommended: true,
     getMovieUrl: (tmdb, imdb, id) => `https://player.autoembed.cc/embed/movie/${tmdb || id}`,
     getTvUrl: (tmdb, imdb, id, s, e) => `https://player.autoembed.cc/embed/tv/${tmdb || id}/${s}/${e}`
   },
